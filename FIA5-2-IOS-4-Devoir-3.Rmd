@@ -2606,6 +2606,18 @@ cat("- Attention à l'impact sur les temps de service totaux (W)\n")
 
 Pour tout point à approfondir sur la discussion globale des modèles et de leur comparaison qui n'aurait pas pu être fait avant ....
 
+**Réponse :**
+
+Le modèle M/M/3 pour les bureaux non-prioritaires donne des prédictions beaucoup \> plus cohérentes avec la réalité que M/M/1 pour le bureau prioritaire.
+
+**Taux d'utilisation** : ρ = 18% signifie que chaque serveur est occupé seulement \> 18% du temps.Le système est **largement sur-dimensionné**, ce qui explique les \> temps d'attente très faibles.
+
+**Probabilité d'attendre (Erlang C)** : Selon le modèle, seulement 2-5% des \> patients doivent attendre en moyenne. Cela correspond bien aux observations \> empiriques où W_q médian est probablement proche de 0.
+
+**Avantage du pooling** : La mutualisation (1 file commune pour 3 serveurs) réduit \> les temps d'attente de 30-40% par rapport à 3 files séparées. C'est un **choix \> organisationnel optimal**.
+
+**Limites** : Comme pour M/M/1, les hypothèses d'arrivées Poissoniennes et de \> stationnarité ne sont pas vérifiées. Cependant, le modèle M/M/3 reste une \> **approximation raisonnable** pour ce système peu chargé."
+
 ### Question bonus (+1)
 
 En utilisant la théorie des files d'attentes et *l'Effective Process Time* pour les temps de service, on a simplifié grandement le comportement du système. Proposez des points précis pour obtenir une modélisation plus complète des services, en particulier pour un modèle de simulation détaillé, et en quoi cela améliorait le modèle tout en considérant les risques de modélisation que cela engendrerait.
