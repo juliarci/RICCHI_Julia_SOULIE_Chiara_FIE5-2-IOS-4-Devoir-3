@@ -411,6 +411,118 @@ duree_tranche <- 10/3
 
 1.3) Analyse et discussion : Approfondissez l'EDA du devoir 1 sur la partie Accueil. Des plots temporels sur les indicateurs peuvent vous aider.
 
+```{r answer 1.3.1}
+library(ggplot2)
+library(lubridate)
+
+# Assurons-nous que ta et td sont en POSIXct
+accueil <- accueil %>%
+  mutate(
+    ta = as.POSIXct(ta, tz = "Europe/Paris"),
+    td = as.POSIXct(td, tz = "Europe/Paris")
+  )
+
+ggplot(accueil, aes(y = factor(ID))) +
+  geom_segment(aes(x = ta, xend = td, yend = factor(ID), color = type_bureau), size = 3) +
+  labs(title = "Présence des patients dans le système",
+       x = "Heure",
+       y = "ID du patient",
+       color = "Type de bureau") +
+  theme_minimal() +
+  theme(axis.text.y = element_blank())
+
+```
+
+**Analyse :**
+
+Sur ce graphique voit qu'on a un nombre moindre de patients prioritaires et que globalement leurs temps d'attente sont plus courts que les patients des autres bureaux. On voit également qu'il y a desp périodes avec un taux d'affluence plus élevé comme aux alentours de 12h par exemple ou de nombreux patients sont présents.
+
+```{r answer 1.3.2}
+ggplot(accueil %>% arrange(desc(W)), aes(x = factor(ID), y = W, fill = type_bureau)) +
+  geom_col() +
+  labs(
+    title = "Temps effectif par patient (trié) avec distinction Prio/Autres",
+    x = "Patients",
+    y = "Temps total dans le système (s)",
+    fill = "Type de bureau"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+
+
+```
+
+**Analyse :**
+
+Ce graphique nous permet de voir la dispersion des temps passés par les patients dans le système. On peut extrapoler une moyenne aux alentours de 350 secondes de temps passé par patient. On peut voir également que le temps total passé dans le système est un peu moins élevé pour les bureaux prioritaires car on a beaucoup moins de valeurs extrèmes comme le patient ayant passé plus de 1000s.
+
+```{r answer 1.3.3}
+ggplot(accueil, aes(x = type_bureau, y = W, fill = type_bureau)) +
+  geom_boxplot() +
+  labs(
+    title = "Distribution des temps effectifs par type de bureau",
+    x = "Type de bureau",
+    y = "Temps total dans le système (s)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+**Analyse :**
+
+Ces deux boxplots permettent de voir que finalement les dispersions entre les deux services sont asses similaires mais que comme dis précédemment le bureau prioritaire à moins de valeurs extrèmes. Donc en général un patient sera obligatoirement pris en charge rapidement dans le bureau prioritaire mais dans un accueil normal peut parfois attendre plus longtemps mais ceci est à la marge.
+
+```{r answer 1.3.4}
+ggplot(L_tranches_bureau, aes(x = tranche, y = L, fill = type_bureau)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Nombre moyen de patients (L) par tranche et type de bureau",
+    x = "Tranche horaire",
+    y = "L (patients)",
+    fill = "Type de bureau"
+  ) +
+  theme_minimal()
+```
+
+**Analyse :**
+
+Ce graphique permet de mettre en évidence le nombre moyen de patient par tranche horaire et par bureau, on voit ainsi que le bureau prioritaire est toujours moins chargé et que les autres bureaux connaissent un pic important en début de journée.
+
+```{r answer 1.3.5}
+ggplot(W_tranches_bureau, aes(x = tranche, y = W_q / 60, fill = type_bureau)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Temps d'attente moyen (W_q) par tranche et type de bureau",
+    x = "Tranche horaire",
+    y = "Temps d'attente moyen (minutes)",
+    fill = "Type de bureau"
+  ) +
+  theme_minimal()
+
+```
+
+**Analyse :**
+
+Ce graphique permet de mettre en évidence le temps moyen d'attente à chaque bureaux, on voit que pour la première tranche horaire un patient attend en moyenne 0.6 minutes dans un bureau de type Autres alors qu'il n'attend pas dans le bureau prioritaire.
+
+```{r}
+ggplot(lambda_tranches_bureau, aes(x = tranche, y = lambda, fill = type_bureau)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Taux d'arrivée moyen (λ) par tranche et type de bureau",
+    x = "Tranche horaire",
+    y = "Lambda (patients/h)",
+    fill = "Type de bureau"
+  ) +
+  theme_minimal()
+
+```
+
+**Analyse :**
+
+Ce graphique permet de visualiser le taux moyen d'arrivée de patient par heure, on voit que les bureaux prioritaires reçoivent bien moins de patients. On voit également de manière globale que sur tous les graphiques que la première période de la journée est toujours chargée et les délais de prise en charge sont plus longs pour les non prioritaires.
+
 ### Question 2) Modélisation du bureau d'accueil prioritaire (/5)
 
 On commence à étudier le service du bureau d'accueil prioritaire comme un système à 1 serveur. N'oubliez pas de comparer à la réalité en tenant compte des approximations et hypothèses de modélisation implicites qui expliquerait des divergences.
