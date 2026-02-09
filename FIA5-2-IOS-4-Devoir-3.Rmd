@@ -149,6 +149,10 @@ accueil
 
 ```
 
+**Résultat :**
+
+On voit que le tableau final est identique au tableau à obtenir.
+
 Vous devriez obtenir le tableau suivant :
 
 ```{r}
@@ -157,35 +161,9 @@ devoir3_data_accueil
 
 1.2) Calculez les indicateurs suivant :
 
--   $\lambda$ : Taux d'arrivée moyen global sur la journée (de 8h à 18h)
+Définissons tout d'abord les paramètres de base :
 
--   $\lambda_{Prio}$ : Taux d'arrivée moyen pour le bureau d'accueil prioritaire
-
--   $\lambda_{Autres}$ : Taux d'arrivée moyen pour les 3 autres bureaux
-
--   $\lambda_{[8h;11h20]}, \lambda_{[11h20;14h40]},\lambda_{[14h40;18h00]}$ : Taux d'arrivée sur 3 les tranches des 10h d'activité
-
--   $\lambda_{[8h;11h20],Prio}, \lambda_{[11h20;14h40],Prio},\lambda_{[14h40;18h00],Prio}$ : Taux d'arrivée sur 3 les tranches des 10h d'activité pour le bureau d'accueil prioritaire
-
--   $\lambda_{[8h;11h20],Autres}, \lambda_{[11h20;14h40],Autres},\lambda_{[14h40;18h00],Autres}$ : Taux d'arrivée sur 3 les tranches des 10h d'activité pour les 3 autres bureaux
-
--   $\mu = \frac{1}{\bar{S}}$ : Taux de service moyen
-
--   $\mu_{Prio} = \frac{1}{\bar{S_{Prio}}}$ : Taux de service moyen pour le bureau d'accueil prioritaire
-
--   $\mu_{Autres} = \frac{1}{\bar{S_{Prio}}}$ : Taux de service moyen pour les 3 autres bureaux
-
--   $cv_S$ : Coefficient de variation du temps de service général
-
--   $cv_{S_{Prio}}$ : Coefficient de variation du temps de service général pour le bureau d'accueil prioritaire
-
--   $cv_{S_{Autres}}$ : Coefficient de variation du temps de service général pour les 3 autres bureaux
-
--   $W,W_{Prio},W_{Autres},W_q,W_{q,Prio},W_{q,Autres}...$ : Indicateurs de temps d'attente (aussi pour chacune des 3 tranches de journée)
-
--   $L,L_{Prio},L_{Autres},L_q,L_{q,Prio},L_{q,Autres}...$ : Indicateurs de niveau d'occupation moyen entre 8h et 18h (aussi pour chacune des 3 tranches de journée)
-
-```{r}
+```{r answer 1.2}
 library(dplyr)
 library(lubridate)
 
@@ -207,212 +185,229 @@ duree_totale <- 10
 
 # Durée par tranche (10h / 3 = 3.333h)
 duree_tranche <- 10/3
-
-# ============ TAUX D'ARRIVÉE (λ) ============
-
-# λ : Taux d'arrivée moyen global
-lambda_global <- nrow(accueil) / duree_totale
-
-# λ_Prio : Taux d'arrivée pour bureau prioritaire
-lambda_Prio <- sum(accueil$type_bureau == "Prio") / duree_totale
-
-# λ_Autres : Taux d'arrivée pour les 3 autres bureaux
-lambda_Autres <- sum(accueil$type_bureau == "Autres") / duree_totale
-
-# Taux d'arrivée par tranche
-lambda_tranches <- accueil %>%
-  filter(tranche != "Hors_plage") %>%
-  group_by(tranche) %>%
-  summarise(
-    lambda = n() / duree_tranche,
-    .groups = "drop"
-  )
-
-lambda_8h_11h20 <- lambda_tranches %>% filter(tranche == "[8h;11h20]") %>% pull(lambda)
-lambda_11h20_14h40 <- lambda_tranches %>% filter(tranche == "[11h20;14h40]") %>% pull(lambda)
-lambda_14h40_18h <- lambda_tranches %>% filter(tranche == "[14h40;18h00]") %>% pull(lambda)
-
-# Taux d'arrivée par tranche ET type de bureau
-lambda_tranches_bureau <- accueil %>%
-  filter(tranche != "Hors_plage") %>%
-  group_by(tranche, type_bureau) %>%
-  summarise(
-    lambda = n() / duree_tranche,
-    .groups = "drop"
-  )
-
-lambda_8h_11h20_Prio <- lambda_tranches_bureau %>% 
-  filter(tranche == "[8h;11h20]", type_bureau == "Prio") %>% pull(lambda)
-lambda_11h20_14h40_Prio <- lambda_tranches_bureau %>% 
-  filter(tranche == "[11h20;14h40]", type_bureau == "Prio") %>% pull(lambda)
-lambda_14h40_18h_Prio <- lambda_tranches_bureau %>% 
-  filter(tranche == "[14h40;18h00]", type_bureau == "Prio") %>% pull(lambda)
-
-lambda_8h_11h20_Autres <- lambda_tranches_bureau %>% 
-  filter(tranche == "[8h;11h20]", type_bureau == "Autres") %>% pull(lambda)
-lambda_11h20_14h40_Autres <- lambda_tranches_bureau %>% 
-  filter(tranche == "[11h20;14h40]", type_bureau == "Autres") %>% pull(lambda)
-lambda_14h40_18h_Autres <- lambda_tranches_bureau %>% 
-  filter(tranche == "[14h40;18h00]", type_bureau == "Autres") %>% pull(lambda)
-
-# Gestion des valeurs manquantes (tranches sans patients)
-lambda_8h_11h20_Prio <- ifelse(length(lambda_8h_11h20_Prio) == 0, 0, lambda_8h_11h20_Prio)
-lambda_11h20_14h40_Prio <- ifelse(length(lambda_11h20_14h40_Prio) == 0, 0, lambda_11h20_14h40_Prio)
-lambda_14h40_18h_Prio <- ifelse(length(lambda_14h40_18h_Prio) == 0, 0, lambda_14h40_18h_Prio)
-lambda_8h_11h20_Autres <- ifelse(length(lambda_8h_11h20_Autres) == 0, 0, lambda_8h_11h20_Autres)
-lambda_11h20_14h40_Autres <- ifelse(length(lambda_11h20_14h40_Autres) == 0, 0, lambda_11h20_14h40_Autres)
-lambda_14h40_18h_Autres <- ifelse(length(lambda_14h40_18h_Autres) == 0, 0, lambda_14h40_18h_Autres)
-
-# ============ TAUX DE SERVICE (μ) ============
-
-# μ : Taux de service moyen global (1/temps moyen)
-S_mean <- mean(accueil$S, na.rm = TRUE)
-mu_global <- 3600 / S_mean  # patients par heure
-
-# μ_Prio : Taux de service pour bureau prioritaire
-S_mean_Prio <- mean(accueil$S[accueil$type_bureau == "Prio"], na.rm = TRUE)
-mu_Prio <- 3600 / S_mean_Prio
-
-# μ_Autres : Taux de service pour les 3 autres bureaux
-S_mean_Autres <- mean(accueil$S[accueil$type_bureau == "Autres"], na.rm = TRUE)
-mu_Autres <- 3600 / S_mean_Autres
-
-# ============ COEFFICIENT DE VARIATION (cv) ============
-
-# cv_S : Coefficient de variation global
-S_sd <- sd(accueil$S, na.rm = TRUE)
-cv_S <- S_sd / S_mean
-
-# cv_S_Prio : Coefficient de variation pour bureau prioritaire
-S_sd_Prio <- sd(accueil$S[accueil$type_bureau == "Prio"], na.rm = TRUE)
-cv_S_Prio <- S_sd_Prio / S_mean_Prio
-
-# cv_S_Autres : Coefficient de variation pour les 3 autres bureaux
-S_sd_Autres <- sd(accueil$S[accueil$type_bureau == "Autres"], na.rm = TRUE)
-cv_S_Autres <- S_sd_Autres / S_mean_Autres
-
-# ============ TEMPS D'ATTENTE (W) ============
-
-# Calculer les temps d'attente empiriques
-accueil <- accueil %>%
-  mutate(
-    W_q = as.numeric(difftime(tdq, ta, units = "secs")),  # Temps en file
-    W = as.numeric(difftime(td, ta, units = "secs"))      # Temps total dans le système
-  )
-
-# W et W_q globaux (en secondes)
-W_global <- mean(accueil$W, na.rm = TRUE)
-W_q_global <- mean(accueil$W_q, na.rm = TRUE)
-
-# Par type de bureau
-W_Prio <- mean(accueil$W[accueil$type_bureau == "Prio"], na.rm = TRUE)
-W_q_Prio <- mean(accueil$W_q[accueil$type_bureau == "Prio"], na.rm = TRUE)
-
-W_Autres <- mean(accueil$W[accueil$type_bureau == "Autres"], na.rm = TRUE)
-W_q_Autres <- mean(accueil$W_q[accueil$type_bureau == "Autres"], na.rm = TRUE)
-
-# Par tranche horaire
-W_tranches <- accueil %>%
-  filter(tranche != "Hors_plage") %>%
-  group_by(tranche) %>%
-  summarise(
-    W = mean(W, na.rm = TRUE),
-    W_q = mean(W_q, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-# Par tranche ET type de bureau
-W_tranches_bureau <- accueil %>%
-  filter(tranche != "Hors_plage") %>%
-  group_by(tranche, type_bureau) %>%
-  summarise(
-    W = mean(W, na.rm = TRUE),
-    W_q = mean(W_q, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-# ============ NIVEAU D'OCCUPATION (L) ============
-# L = λ * W (Loi de Little)
-
-# L et L_q globaux
-L_global <- lambda_global * (W_global / 3600)  # Convertir W en heures
-L_q_global <- lambda_global * (W_q_global / 3600)
-
-# Par type de bureau
-L_Prio <- lambda_Prio * (W_Prio / 3600)
-L_q_Prio <- lambda_Prio * (W_q_Prio / 3600)
-
-L_Autres <- lambda_Autres * (W_Autres / 3600)
-L_q_Autres <- lambda_Autres * (W_q_Autres / 3600)
-
-# Par tranche horaire
-L_tranches <- lambda_tranches %>%
-  left_join(W_tranches, by = "tranche") %>%
-  mutate(
-    L = lambda * (W / 3600),
-    L_q = lambda * (W_q / 3600)
-  )
-
-# Par tranche ET type de bureau
-L_tranches_bureau <- lambda_tranches_bureau %>%
-  left_join(W_tranches_bureau, by = c("tranche", "type_bureau")) %>%
-  mutate(
-    L = lambda * (W / 3600),
-    L_q = lambda * (W_q / 3600)
-  )
-
-# ============ AFFICHAGE DES RÉSULTATS ============
-
-cat("========== TAUX D'ARRIVÉE (patients/heure) ==========\n")
-cat("λ (global) =", round(lambda_global, 3), "\n")
-cat("λ_Prio =", round(lambda_Prio, 3), "\n")
-cat("λ_Autres =", round(lambda_Autres, 3), "\n\n")
-
-cat("Taux d'arrivée par tranche :\n")
-cat("λ_[8h;11h20] =", round(lambda_8h_11h20, 3), "\n")
-cat("λ_[11h20;14h40] =", round(lambda_11h20_14h40, 3), "\n")
-cat("λ_[14h40;18h00] =", round(lambda_14h40_18h, 3), "\n\n")
-
-cat("Taux d'arrivée Prio par tranche :\n")
-cat("λ_[8h;11h20],Prio =", round(lambda_8h_11h20_Prio, 3), "\n")
-cat("λ_[11h20;14h40],Prio =", round(lambda_11h20_14h40_Prio, 3), "\n")
-cat("λ_[14h40;18h00],Prio =", round(lambda_14h40_18h_Prio, 3), "\n\n")
-
-cat("Taux d'arrivée Autres par tranche :\n")
-cat("λ_[8h;11h20],Autres =", round(lambda_8h_11h20_Autres, 3), "\n")
-cat("λ_[11h20;14h40],Autres =", round(lambda_11h20_14h40_Autres, 3), "\n")
-cat("λ_[14h40;18h00],Autres =", round(lambda_14h40_18h_Autres, 3), "\n\n")
-
-cat("========== TAUX DE SERVICE (patients/heure) ==========\n")
-cat("μ (global) =", round(mu_global, 3), "\n")
-cat("μ_Prio =", round(mu_Prio, 3), "\n")
-cat("μ_Autres =", round(mu_Autres, 3), "\n\n")
-
-cat("========== COEFFICIENT DE VARIATION ==========\n")
-cat("cv_S (global) =", round(cv_S, 3), "\n")
-cat("cv_S_Prio =", round(cv_S_Prio, 3), "\n")
-cat("cv_S_Autres =", round(cv_S_Autres, 3), "\n\n")
-
-cat("========== TEMPS D'ATTENTE (secondes) ==========\n")
-cat("W (global) =", round(W_global, 2), "\n")
-cat("W_q (global) =", round(W_q_global, 2), "\n")
-cat("W_Prio =", round(W_Prio, 2), "\n")
-cat("W_q_Prio =", round(W_q_Prio, 2), "\n")
-cat("W_Autres =", round(W_Autres, 2), "\n")
-cat("W_q_Autres =", round(W_q_Autres, 2), "\n\n")
-
-cat("========== NIVEAU D'OCCUPATION ==========\n")
-cat("L (global) =", round(L_global, 3), "\n")
-cat("L_q (global) =", round(L_q_global, 3), "\n")
-cat("L_Prio =", round(L_Prio, 3), "\n")
-cat("L_q_Prio =", round(L_q_Prio, 3), "\n")
-cat("L_Autres =", round(L_Autres, 3), "\n")
-cat("L_q_Autres =", round(L_q_Autres, 3), "\n\n")
-
-cat("========== PAR TRANCHE HORAIRE ==========\n")
-print(L_tranches)
-print(L_tranches_bureau)
 ```
+
+-   $\lambda$ : Taux d'arrivée moyen global sur la journée (de 8h à 18h)
+
+    ```{r answer 1.2.2}
+
+    lambda_global <- nrow(accueil) / duree_totale
+
+    lambda_global
+    ```
+
+-   $\lambda_{Prio}$ : Taux d'arrivée moyen pour le bureau d'accueil prioritaire
+
+    ```{r answer 1.2.3}
+
+    lambda_Prio <- sum(accueil$type_bureau == "Prio") / duree_totale
+    lambda_Prio
+    ```
+
+-   $\lambda_{Autres}$ : Taux d'arrivée moyen pour les 3 autres bureaux
+
+    ```{r answer 1.2.4}
+
+    lambda_Autres <- sum(accueil$type_bureau == "Autres") / duree_totale
+    lambda_Autres
+    ```
+
+-   $\lambda_{[8h;11h20]}, \lambda_{[11h20;14h40]},\lambda_{[14h40;18h00]}$ : Taux d'arrivée sur 3 les tranches des 10h d'activité
+
+    ```{r answer 1.2.5}
+    lambda_8h_11h20 <- lambda_tranches %>% filter(tranche == "[8h;11h20]") %>% pull(lambda)
+    lambda_11h20_14h40 <- lambda_tranches %>% filter(tranche == "[11h20;14h40]") %>% pull(lambda)
+    lambda_14h40_18h <- lambda_tranches %>% filter(tranche == "[14h40;18h00]") %>% pull(lambda)
+
+    # Taux d'arrivée par tranche ET type de bureau
+    lambda_tranches_bureau <- accueil %>%
+      filter(tranche != "Hors_plage") %>%
+      mutate(
+        tranche = factor(
+          tranche,
+          levels = c("[8h;11h20]", "[11h20;14h40]", "[14h40;18h00]")
+        )
+      ) %>%
+      group_by(tranche, type_bureau) %>%
+      summarise(
+        lambda = n() / duree_tranche,
+        .groups = "drop"
+      ) %>%
+      arrange(tranche)
+
+
+    lambda_tranches_bureau
+    ```
+
+-   $\lambda_{[8h;11h20],Prio}, \lambda_{[11h20;14h40],Prio},\lambda_{[14h40;18h00],Prio}$ : Taux d'arrivée sur 3 les tranches des 10h d'activité pour le bureau d'accueil prioritaire
+
+    ```{r answer 1.2.6}
+    lambda_8h_11h20_Prio <- lambda_tranches_bureau %>% 
+      filter(tranche == "[8h;11h20]", type_bureau == "Prio") %>% pull(lambda)
+    lambda_11h20_14h40_Prio <- lambda_tranches_bureau %>% 
+      filter(tranche == "[11h20;14h40]", type_bureau == "Prio") %>% pull(lambda)
+    lambda_14h40_18h_Prio <- lambda_tranches_bureau %>% 
+      filter(tranche == "[14h40;18h00]", type_bureau == "Prio") %>% pull(lambda)
+
+    # Gestion des valeurs manquantes (tranches sans patients)
+    lambda_8h_11h20_Prio <- ifelse(length(lambda_8h_11h20_Prio) == 0, 0, lambda_8h_11h20_Prio)
+    lambda_11h20_14h40_Prio <- ifelse(length(lambda_11h20_14h40_Prio) == 0, 0, lambda_11h20_14h40_Prio)
+    lambda_14h40_18h_Prio <- ifelse(length(lambda_14h40_18h_Prio) == 0, 0, lambda_14h40_18h_Prio)
+
+    cat("Lamda[8h;11h20]Prio : ",lambda_8h_11h20_Prio, "\n")
+    cat("Lamda[11h20;14h40]Prio : ",lambda_11h20_14h40_Prio, "\n")
+    cat("Lamda[14h40;18h00]Prio : ",lambda_14h40_18h_Prio)
+    ```
+
+-   $\lambda_{[8h;11h20],Autres}, \lambda_{[11h20;14h40],Autres},\lambda_{[14h40;18h00],Autres}$ : Taux d'arrivée sur 3 les tranches des 10h d'activité pour les 3 autres bureaux
+
+    ```{r answer 1.2.7}
+    lambda_8h_11h20_Autres <- lambda_tranches_bureau %>% 
+      filter(tranche == "[8h;11h20]", type_bureau == "Autres") %>% pull(lambda)
+    lambda_11h20_14h40_Autres <- lambda_tranches_bureau %>% 
+      filter(tranche == "[11h20;14h40]", type_bureau == "Autres") %>% pull(lambda)
+    lambda_14h40_18h_Autres <- lambda_tranches_bureau %>% 
+      filter(tranche == "[14h40;18h00]", type_bureau == "Autres") %>% pull(lambda)
+
+    lambda_8h_11h20_Autres <- ifelse(length(lambda_8h_11h20_Autres) == 0, 0, lambda_8h_11h20_Autres)
+    lambda_11h20_14h40_Autres <- ifelse(length(lambda_11h20_14h40_Autres) == 0, 0, lambda_11h20_14h40_Autres)
+    lambda_14h40_18h_Autres <- ifelse(length(lambda_14h40_18h_Autres) == 0, 0, lambda_14h40_18h_Autres)
+
+    cat("Lamda[8h;11h20]Autres : ",lambda_8h_11h20_Autres, "\n")
+    cat("Lamda[11h20;14h40]Autres : ",lambda_11h20_14h40_Autres, "\n")
+    cat("Lamda[14h40;18h00]Autres : ",lambda_14h40_18h_Autres)
+    ```
+
+-   $\mu = \frac{1}{\bar{S}}$ : Taux de service moyen
+
+    ```{r answer 1.2.8}
+    mu_global <- 3600 / S_mean
+    cat("mu = ",mu_global, " clients/heures")
+    ```
+
+-   $\mu_{Prio} = \frac{1}{\bar{S_{Prio}}}$ : Taux de service moyen pour le bureau d'accueil prioritaire
+
+    ```{r answer 1.2.9}
+    S_mean_Prio <- mean(accueil$S[accueil$type_bureau == "Prio"], na.rm = TRUE)
+    mu_Prio <- 3600 / S_mean_Prio
+    cat("muPrio = ",mu_Prio, " clients/heures")
+    ```
+
+-   $\mu_{Autres} = \frac{1}{\bar{S_{Prio}}}$ : Taux de service moyen pour les 3 autres bureaux
+
+    ```{r answer 1.2.10}
+    S_mean_Autres <- mean(accueil$S[accueil$type_bureau == "Autres"], na.rm = TRUE)
+    mu_Autres <- 3600 / S_mean_Autres
+    cat("muAutres = ",mu_Autres, " clients/heures")
+    ```
+
+-   $cv_S$ : Coefficient de variation du temps de service général
+
+    ```{r answer 1.2.11}
+    S_sd <- sd(accueil$S, na.rm = TRUE)
+    cv_S <- S_sd / S_mean
+    cat("cv_S = ", cv_S)
+    ```
+
+-   $cv_{S_{Prio}}$ : Coefficient de variation du temps de service général pour le bureau d'accueil prioritaire
+
+    ```{r answer 1.2.12}
+    S_sd_Prio <- sd(accueil$S[accueil$type_bureau == "Prio"], na.rm = TRUE)
+    cv_S_Prio <- S_sd_Prio / S_mean_Prio
+    cat("cv_S_Prio = ", cv_S_Prio)
+    ```
+
+-   $cv_{S_{Autres}}$ : Coefficient de variation du temps de service général pour les 3 autres bureaux
+
+    ```{r answer 1.2.13}
+    S_sd_Autres <- sd(accueil$S[accueil$type_bureau == "Autres"], na.rm = TRUE)
+    cv_S_Autres <- S_sd_Autres / S_mean_Autres
+    cat("cv_S_Autres = ", cv_S_Autres)
+    ```
+
+-   $W,W_{Prio},W_{Autres},W_q,W_{q,Prio},W_{q,Autres}...$ : Indicateurs de temps d'attente (aussi pour chacune des 3 tranches de journée)
+
+    ```{r answer 1.2.14}
+    # Calculer les temps d'attente empiriques
+    accueil <- accueil %>%
+      mutate(
+        W_q = as.numeric(difftime(tdq, ta, units = "secs")), 
+        W = as.numeric(difftime(td, ta, units = "secs"))     
+      )
+
+    # W et W_q globaux (en secondes)
+    W_global <- mean(accueil$W, na.rm = TRUE)
+    W_q_global <- mean(accueil$W_q, na.rm = TRUE)
+
+    # Par type de bureau
+    W_Prio <- mean(accueil$W[accueil$type_bureau == "Prio"], na.rm = TRUE)
+    W_q_Prio <- mean(accueil$W_q[accueil$type_bureau == "Prio"], na.rm = TRUE)
+
+    W_Autres <- mean(accueil$W[accueil$type_bureau == "Autres"], na.rm = TRUE)
+    W_q_Autres <- mean(accueil$W_q[accueil$type_bureau == "Autres"], na.rm = TRUE)
+
+    # Par tranche horaire
+    W_tranches <- accueil %>%
+      filter(tranche != "Hors_plage") %>%
+      group_by(tranche) %>%
+      summarise(
+        W = mean(W, na.rm = TRUE),
+        W_q = mean(W_q, na.rm = TRUE),
+        .groups = "drop"
+      )
+
+    # Par tranche ET type de bureau
+    W_tranches_bureau <- accueil %>%
+      filter(tranche != "Hors_plage") %>%
+      mutate(
+        tranche = factor(
+          tranche,
+          levels = c("[8h;11h20]", "[11h20;14h40]", "[14h40;18h00]")
+        )
+      ) %>%
+      group_by(tranche, type_bureau) %>%
+      summarise(
+        W = mean(W, na.rm = TRUE),
+        W_q = mean(W_q, na.rm = TRUE),
+        .groups = "drop"
+      )
+    W_tranches_bureau
+    ```
+
+-   $L,L_{Prio},L_{Autres},L_q,L_{q,Prio},L_{q,Autres}...$ : Indicateurs de niveau d'occupation moyen entre 8h et 18h (aussi pour chacune des 3 tranches de journée)
+
+    ```{r answer 1.2.15}
+    # L = λ * W (Loi de Little)
+
+    # L et L_q globaux
+    L_global <- lambda_global * (W_global / 3600) 
+    L_q_global <- lambda_global * (W_q_global / 3600)
+
+    # Par type de bureau
+    L_Prio <- lambda_Prio * (W_Prio / 3600)
+    L_q_Prio <- lambda_Prio * (W_q_Prio / 3600)
+
+    L_Autres <- lambda_Autres * (W_Autres / 3600)
+    L_q_Autres <- lambda_Autres * (W_q_Autres / 3600)
+
+    # Par tranche horaire
+    L_tranches <- lambda_tranches %>%
+      left_join(W_tranches, by = "tranche") %>%
+      mutate(
+        L = lambda * (W / 3600),
+        L_q = lambda * (W_q / 3600)
+      )
+
+    # Par tranche ET type de bureau
+    L_tranches_bureau <- lambda_tranches_bureau %>%
+      left_join(W_tranches_bureau, by = c("tranche", "type_bureau")) %>%
+      mutate(
+        L = lambda * (W / 3600),
+        L_q = lambda * (W_q / 3600)
+      )
+
+    L_tranches_bureau
+    ```
 
 1.3) Analyse et discussion : Approfondissez l'EDA du devoir 1 sur la partie Accueil. Des plots temporels sur les indicateurs peuvent vous aider.
 
