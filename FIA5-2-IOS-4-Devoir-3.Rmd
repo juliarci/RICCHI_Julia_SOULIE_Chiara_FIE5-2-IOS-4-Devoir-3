@@ -506,7 +506,7 @@ ggplot(W_tranches_bureau, aes(x = tranche, y = W_q / 60, fill = type_bureau)) +
 
 Ce graphique permet de mettre en évidence le temps moyen d'attente à chaque bureaux, on voit que pour la première tranche horaire un patient attend en moyenne 0.6 minutes dans un bureau de type Autres alors qu'il n'attend pas dans le bureau prioritaire.
 
-```{r}
+```{r answer 1.3.6}
 ggplot(lambda_tranches_bureau, aes(x = tranche, y = lambda, fill = type_bureau)) +
   geom_col(position = "dodge") +
   labs(
@@ -529,202 +529,221 @@ On commence à étudier le service du bureau d'accueil prioritaire comme un syst
 
 2.1) Étudiez le modèle $M/M/1$ avec le taux de service $\mu_{Prio}$ et en regardant pour différent taux d'arrivée, en particulier $\lambda_{Prio},\lambda_{[8h;11h20],Prio}, \lambda_{[11h20;14h40],Prio}, \lambda_{[14h40;18h00,Prio]}$.
 
-```{r}
+**Définition des paramètres M/M/1 :**
+
+```{r answer 2.1.1}
 library(dplyr)
-library(knitr)
-
-# ========== PARAMÈTRES EXTRAITS ========== 
-# Taux de service (patients/heure)
-mu_Prio <- 9.062
-
-# Taux d'arrivée (patients/heure)
-lambda_Prio <- 1.9
-lambda_8h_11h20_Prio <- 2.7
-lambda_11h20_14h40_Prio <- 1.2
-lambda_14h40_18h_Prio <- 1.8
-
-# ========== FORMULES M/M/1 ========== 
-# ρ = λ/μ : Taux d'utilisation
-# L_q = ρ²/(1-ρ) : Nombre moyen de clients en file
-# L = ρ/(1-ρ) : Nombre moyen de clients dans le système
-# W_q = ρ/(μ(1-ρ)) : Temps moyen d'attente en file (heures)
-# W = 1/(μ-λ) : Temps moyen dans le système (heures)
-
-# Fonction pour calculer les indicateurs M/M/1
-calcul_MM1 <- function(lambda, mu, nom_periode = "") {
-  rho <- lambda / mu
-  
-  # Vérifier la stabilité (ρ < 1)
-  if (rho >= 1) {
-    return(data.frame(
-      Periode = nom_periode,
-      lambda = lambda,
-      mu = mu,
-      rho = rho,
-      L_q = Inf,
-      L = Inf,
-      W_q_sec = Inf,
-      W_sec = Inf,
-      Stable = "NON"
-    ))
-  }
-  
-  # Calculs théoriques M/M/1
-  L_q <- (rho^2) / (1 - rho)
-  L <- rho / (1 - rho)
-  W_q_heures <- rho / (mu * (1 - rho))
-  W_heures <- 1 / (mu - lambda)
-  
-  # Conversion en secondes
-  W_q_sec <- W_q_heures * 3600
-  W_sec <- W_heures * 3600
-  
-  return(data.frame(
-    Periode = nom_periode,
-    lambda = lambda,
-    mu = mu,
-    rho = round(rho, 4),
-    L_q = round(L_q, 4),
-    L = round(L, 4),
-    W_q_sec = round(W_q_sec, 2),
-    W_sec = round(W_sec, 2),
-    Stable = "OUI"
-  ))
-}
-
-# ========== CALCULS POUR DIFFÉRENTES PÉRIODES ========== 
-resultats_MM1 <- bind_rows(
-  calcul_MM1(lambda_Prio, mu_Prio, "Global (8h-18h)"),
-  calcul_MM1(lambda_8h_11h20_Prio, mu_Prio, "[8h;11h20]"),
-  calcul_MM1(lambda_11h20_14h40_Prio, mu_Prio, "[11h20;14h40]"),
-  calcul_MM1(lambda_14h40_18h_Prio, mu_Prio, "[14h40;18h00]")
-)
-
-cat("\n========== MODÈLE M/M/1 - BUREAU PRIORITAIRE ==========\n\n")
-print(kable(resultats_MM1, format = "simple"))
-
-# ========== COMPARAISON AVEC LA RÉALITÉ ========== 
-cat("\n========== COMPARAISON THÉORIE M/M/1 vs RÉALITÉ EMPIRIQUE ==========\n\n")
-
-# Données empiriques (de votre question 1.2)
-donnees_empiriques <- data.frame(
-  Periode = c("Global (8h-18h)", "[8h;11h20]", "[11h20;14h40]", "[14h40;18h00]"),
-  W_q_empirique = c(1.30, 0, 0, 4.10),
-  W_empirique = c(398.57, 449, 345, 358),
-  L_q_empirique = c(0.001, 0, 0, 0.00205),
-  L_empirique = c(0.210, 0.337, 0.115, 0.179)
-)
-
-# Fusionner théorie et empirique
-comparaison <- resultats_MM1 %>%
-  left_join(donnees_empiriques, by = "Periode") %>%
-  mutate(
-    Ecart_W_q = W_q_sec - W_q_empirique,
-    Ecart_W = W_sec - W_empirique,
-    Ecart_L_q = L_q - L_q_empirique,
-    Ecart_L = L - L_empirique,
-    Ecart_W_q_pct = round(100 * (W_q_sec - W_q_empirique) / pmax(W_q_empirique, 0.01), 1),
-    Ecart_L_q_pct = round(100 * (L_q - L_q_empirique) / pmax(L_q_empirique, 0.001), 1)
-  )
-
-cat("\n--- Comparaison W_q (temps d'attente en file, secondes) ---\n")
-print(kable(comparaison %>% select(Periode, W_q_sec, W_q_empirique, Ecart_W_q, Ecart_W_q_pct), 
-            format = "simple"))
-
-cat("\n--- Comparaison W (temps total dans le système, secondes) ---\n")
-print(kable(comparaison %>% select(Periode, W_sec, W_empirique, Ecart_W), 
-            format = "simple"))
-
-cat("\n--- Comparaison L_q (nombre moyen en file) ---\n")
-print(kable(comparaison %>% select(Periode, L_q, L_q_empirique, Ecart_L_q, Ecart_L_q_pct), 
-            format = "simple"))
-
-cat("\n--- Comparaison L (nombre moyen dans le système) ---\n")
-print(kable(comparaison %>% select(Periode, L, L_empirique, Ecart_L), 
-            format = "simple"))
-
-# ========== ANALYSE DES ÉCARTS ========== 
-cat("\n========== ANALYSE DES DIVERGENCES ==========\n\n")
-
-cat("1. HYPOTHÈSE D'ARRIVÉES POISSONIENNES (M):\n")
-cat("   - Le modèle M/M/1 suppose des arrivées selon un processus de Poisson\n")
-cat("   - Dans la réalité, les arrivées peuvent être groupées (RDV planifiés)\n")
-cat("   - Impact: Peut sous-estimer ou surestimer les temps d'attente\n\n")
-
-cat("2. HYPOTHÈSE DE SERVICE EXPONENTIEL (M):\n")
-cat("   - Le modèle suppose des temps de service exponentiels\n")
-cat("   - cv_S_Prio = 0.307 < 1 suggère moins de variabilité qu'une loi exponentielle\n")
-cat("   - Impact: M/M/1 surestime généralement les temps d'attente\n\n")
-
-cat("3. STATIONNARITÉ:\n")
-cat("   - Le modèle suppose un régime stationnaire constant\n")
-cat("   - Les taux d'arrivée varient fortement par tranche horaire:\n")
-cat("     * [8h;11h20]: λ = 2.7 (forte affluence)\n")
-cat("     * [11h20;14h40]: λ = 1.2 (faible affluence)\n")
-cat("     * [14h40;18h00]: λ = 1.8 (affluence moyenne)\n")
-cat("   - Impact: Modèle global moins précis que modèles par tranche\n\n")
-
-cat("4. PÉRIODE DE MONTÉE EN CHARGE:\n")
-cat("   - Le modèle suppose un système déjà en régime stationnaire\n")
-cat("   - En réalité, le système démarre vide à 8h\n")
-cat("   - Impact: Sous-estimation des performances en début de journée\n\n")
-
-cat("5. TAUX D'UTILISATION (ρ):\n")
-rho_global <- lambda_Prio / mu_Prio
-rho_max <- lambda_8h_11h20_Prio / mu_Prio
-cat(sprintf("   - ρ global = %.3f (%.1f%% d'occupation)\n", rho_global, rho_global*100))
-cat(sprintf("   - ρ max [8h;11h20] = %.3f (%.1f%% d'occupation)\n", rho_max, rho_max*100))
-cat("   - Taux d'utilisation relativement faible → files d'attente courtes\n\n")
-
-cat("6. OBSERVATIONS CLÉS:\n")
-cat("   - W_q empiriques très faibles (0-4 sec) vs M/M/1 prédictions plus élevées\n")
-cat("   - Cela suggère que le bureau prioritaire est bien dimensionné\n")
-cat("   - Les patients prioritaires ont très peu d'attente en pratique\n")
-cat("   - Le modèle M/M/1 est conservateur (surestime les attentes)\n\n")
-
-# ========== VISUALISATION ========== 
-cat("\n========== GRAPHIQUES ==========\n")
-
-# Graphique de comparaison
 library(ggplot2)
 
-# Préparer les données pour le graphique
-df_plot <- comparaison %>%
-  select(Periode, W_q_sec, W_q_empirique) %>%
-  tidyr::pivot_longer(cols = c(W_q_sec, W_q_empirique), 
-                      names_to = "Type", 
-                      values_to = "W_q")
+# Paramètres du bureau prioritaire
+lambda_global <- sum(accueil$type_bureau == "Prio") / 10           # taux d'arrivée global (patients/h)
+lambda_8h_11h20_Prio <- lambda_8h_11h20_Prio
+lambda_11h20_14h40_Prio <- lambda_11h20_14h40_Prio
+lambda_14h40_18h_Prio <- lambda_14h40_18h_Prio
 
-p1 <- ggplot(df_plot, aes(x = Periode, y = W_q, fill = Type)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Comparaison W_q : M/M/1 vs Empirique",
-       subtitle = "Bureau d'Accueil Prioritaire",
-       x = "Période",
-       y = "Temps d'attente moyen (secondes)",
-       fill = "Source") +
-  scale_fill_manual(values = c("W_q_sec" = "steelblue", "W_q_empirique" = "darkgreen"),
-                    labels = c("W_q_sec" = "M/M/1 (théorique)", 
-                              "W_q_empirique" = "Empirique (réel)")) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+mu_Prio <- 3600 / mean(accueil$S[accueil$type_bureau == "Prio"], na.rm = TRUE)  # patients/h
 
-print(p1)
-
-# Graphique rho par période
-df_rho <- resultats_MM1 %>%
-  mutate(rho_pct = rho * 100)
-
-p2 <- ggplot(df_rho, aes(x = Periode, y = rho_pct)) +
-  geom_bar(stat = "identity", fill = "coral") +
-  geom_hline(yintercept = 100, linetype = "dashed", color = "red") +
-  labs(title = "Taux d'utilisation du bureau prioritaire",
-       x = "Période",
-       y = "ρ (%)") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-print(p2)
+# Taux d'occupation
+rho_global <- lambda_global / mu_Prio
+rho_8h <- lambda_8h_11h20_Prio / mu_Prio
+rho_11h <- lambda_11h20_14h40_Prio / mu_Prio
+rho_14h <- lambda_14h40_18h_Prio / mu_Prio
 ```
+
+Le taux de service μ du bureau prioritaire est estimé à partir du temps moyen de service observé dans les données. Les taux d’arrivée λ sont calculés pour différentes périodes de la journée afin de capturer la variabilité temporelle de la demande.
+
+**Fonction M/M/1 et calcul des indicateurs :**
+
+```{r answer 2.1.2}
+# Fonction M/M/1
+calcul_MM1 <- function(lambda, mu, periode = "") {
+  rho <- lambda / mu
+  if (rho >= 1) {
+    return(data.frame(
+      Periode = periode, lambda=lambda, mu=mu, rho=rho,
+      L_q = Inf, L = Inf, W_q_sec = Inf, W_sec = Inf, Stable="NON"
+    ))
+  }
+  L_q <- rho^2 / (1 - rho)
+  L <- rho / (1 - rho)
+  W_q <- rho / (mu * (1 - rho)) * 3600  # secondes
+  W <- 1 / (mu - lambda) * 3600        # secondes
+  data.frame(
+    Periode = periode, lambda=lambda, mu=mu, rho=round(rho, 4),
+    L_q=round(L_q, 4), L=round(L, 4),
+    W_q_sec=round(W_q,2), W_sec=round(W,2), Stable="OUI"
+  )
+}
+
+# Calcul pour toutes les périodes
+resultats_MM1 <- bind_rows(
+  calcul_MM1(lambda_global, mu_Prio, "Global"),
+  calcul_MM1(lambda_8h_11h20_Prio, mu_Prio, "[8h-11h20]"),
+  calcul_MM1(lambda_11h20_14h40_Prio, mu_Prio, "[11h20-14h40]"),
+  calcul_MM1(lambda_14h40_18h_Prio, mu_Prio, "[14h40-18h]")
+)
+
+print(kable(resultats_MM1, format = "simple"))
+
+
+```
+
+À partir des paramètres λ et μ, les indicateurs théoriques du modèle M/M/1 sont calculés pour chaque période. On vérifie en particulier la condition de stabilité du système (ρ \< 1) et on observe l’évolution des indicateurs de congestion lorsque le taux d’arrivée augmente.
+
+**Probabilité d’état (P_n) en fonction de n et ρ :**
+
+Pour un M/M/1, la probabilité d’avoir **n clients** dans le système :
+
+Pn​=(1−ρ)ρ^n
+
+```{r answer 2.1.3}
+library(ggplot2)
+library(dplyr)
+
+# Valeurs de rho à comparer
+rho_values <- c(
+  rho_global,
+  lambda_8h_11h20_Prio / mu_Prio,
+  lambda_11h20_14h40_Prio / mu_Prio,
+  lambda_14h40_18h_Prio / mu_Prio
+)
+
+rho_labels <- c("Global", "[8h;11h20]", "[11h20;14h40]", "[14h40;18h00]")
+
+# États n
+n_max <- 10
+n <- 0:n_max
+
+# Construire la table des probabilités
+prob_etat <- expand.grid(n = n, rho = rho_values) %>%
+  mutate(
+    P_n = (1 - rho) * rho^n,
+    rho_factor = factor(rho, labels = rho_labels)
+  )
+
+# Graphique
+ggplot(prob_etat, aes(x = n, y = P_n, fill = rho_factor)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Probabilité d'état stationnaire P(n) – Modèle M/M/1",
+    subtitle = "Comparaison pour différents taux d'utilisation ρ",
+    x = "Nombre de patients dans le système (n)",
+    y = "Probabilité P(n)",
+    fill = "Période (ρ)"
+  ) +
+  theme_minimal()
+
+```
+
+La probabilité d’état stationnaire P(n) permet d’analyser la distribution du nombre de patients présents dans le système. Lorsque le taux d’occupation ρ augmente, la probabilité d’observer des états avec un nombre élevé de patients devient plus importante, traduisant un risque accru de congestion.
+
+**Graphique d’occupation moyenne (L et Lq)**
+
+```{r answer 2.1.4}
+# Graphique occupation
+rho_seq <- seq(0.01, 0.95, by = 0.01)
+
+df_theorie <- data.frame(
+  rho = rho_seq,
+  L = rho_seq / (1 - rho_seq),
+  L_q = rho_seq^2 / (1 - rho_seq)
+)
+
+ggplot(df_theorie, aes(x = rho)) +
+  geom_line(aes(y = L, color = "L"), linewidth = 1.2) +
+  geom_line(aes(y = L_q, color = "L_q"), linewidth = 1.2) +
+  scale_color_manual(values = c("L" = "blue", "L_q" = "green")) +
+  labs(
+    title = "Occupation moyenne théorique du système M/M/1",
+    x = "Taux d'utilisation ρ",
+    y = "Nombre moyen de patients",
+    color = "Indicateur"
+  ) +
+  theme_minimal()
+
+
+```
+
+Ce graphique présente l’évolution théorique de l’occupation moyenne du système et de la file d’attente en fonction du taux d’utilisation ρ. On observe une croissance non linéaire, illustrant la forte sensibilité du système à une augmentation de la charge lorsque ρ se rapproche de 1.
+
+**Comparaison théorie / empirique du temps d'attente :**
+
+```{r answer 2.1.5}
+# Exemple : données empiriques
+donnees_empiriques <- data.frame(
+  Periode=c("Global","[8h-11h20]","[11h20-14h40]","[14h40-18h]"),
+  W_q_emp=c(1.3, 0, 0, 4.1),  # en secondes
+  W_emp=c(398.57,449,345,358),
+  L_q_emp=c(0.001,0,0,0.00205),
+  L_emp=c(0.21,0.337,0.115,0.179)
+)
+
+library(tidyr)
+
+df_Wq_plot <- comparaison %>%
+  select(Periode, W_q_sec, W_q_empirique) %>%
+  pivot_longer(cols = c(W_q_sec, W_q_empirique),
+               names_to = "Source",
+               values_to = "W_q")
+
+ggplot(df_Wq_plot, aes(x = Periode, y = W_q, fill = Source)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Temps d'attente en file : Théorie M/M/1 vs Réalité",
+    x = "Période",
+    y = "Wq (secondes)",
+    fill = ""
+  ) +
+  scale_fill_manual(
+    values = c("W_q_sec" = "steelblue", "W_q_empirique" = "darkgreen"),
+    labels = c("M/M/1", "Empirique")
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+La comparaison entre les valeurs théoriques et empiriques montre que le modèle M/M/1 tend à surestimer le temps d’attente en file. Ceci s’explique notamment par la variabilité réelle des arrivées et par une organisation efficace du bureau prioritaire, conduisant à des files d’attente très faibles dans la pratique.
+
+**Comparaison théorique / empirique de l'occupation moyenne :**
+
+```{r answer 2.1.6}
+df_L_plot <- comparaison %>%
+  select(Periode, L, L_empirique, L_q, L_q_empirique) %>%
+  pivot_longer(cols = -Periode)
+
+ggplot(df_L_plot, aes(x = Periode, y = value, fill = name)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Occupation moyenne : Théorie vs Empirique",
+    x = "Période",
+    y = "Nombre moyen de patients"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+Les valeurs empiriques de l’occupation moyenne sont globalement inférieures aux valeurs théoriques prévues par le modèle M/M/1. Cela confirme que le bureau prioritaire fonctionne dans un régime peu congestionné, avec une capacité de service suffisante par rapport à la demande observée.
+
+**Taux d'utilisation du bureau prioritaire :**
+
+```{r answer 2.1.7}
+ggplot(resultats_MM1, aes(x = Periode, y = rho)) +
+  geom_col(fill = "coral") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
+  labs(
+    title = "Taux d'utilisation du bureau prioritaire",
+    x = "Période",
+    y = "ρ"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+Le taux d’utilisation du bureau prioritaire reste inférieur à 1 pour l’ensemble des périodes étudiées, garantissant la stabilité du système. Les variations de ρ selon les tranches horaires traduisent des différences de charge, sans toutefois atteindre un niveau critique de saturation.
 
 2.2) Faites de même avec le modèle le modèle $M/G/1$ et grâce aux formules de Pollaczek-Khinchine (souvent abrégées formules P-K, voir Shortle et al. 2018 section 5).
 
