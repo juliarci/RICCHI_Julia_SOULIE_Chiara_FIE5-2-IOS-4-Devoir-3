@@ -536,7 +536,7 @@ library(dplyr)
 library(ggplot2)
 
 # Paramètres du bureau prioritaire
-lambda_global <- sum(accueil$type_bureau == "Prio") / 10           # taux d'arrivée global (patients/h)
+lambda_global <- sum(accueil$type_bureau == "Prio") / 10           
 lambda_8h_11h20_Prio <- lambda_8h_11h20_Prio
 lambda_11h20_14h40_Prio <- lambda_11h20_14h40_Prio
 lambda_14h40_18h_Prio <- lambda_14h40_18h_Prio
@@ -555,6 +555,7 @@ Le taux de service μ du bureau prioritaire est estimé à partir du temps moyen
 **Fonction M/M/1 et calcul des indicateurs :**
 
 ```{r answer 2.1.2}
+library(knitr)
 # Fonction M/M/1
 calcul_MM1 <- function(lambda, mu, periode = "") {
   rho <- lambda / mu
@@ -594,7 +595,7 @@ print(kable(resultats_MM1, format = "simple"))
 
 Pour un M/M/1, la probabilité d’avoir **n clients** dans le système :
 
-Pn​=(1−ρ)ρ^n
+Pn​=(1−ρ)ρ\^n
 
 ```{r answer 2.1.3}
 library(ggplot2)
@@ -747,39 +748,19 @@ Le taux d’utilisation du bureau prioritaire reste inférieur à 1 pour l’ens
 
 2.2) Faites de même avec le modèle le modèle $M/G/1$ et grâce aux formules de Pollaczek-Khinchine (souvent abrégées formules P-K, voir Shortle et al. 2018 section 5).
 
-```{r}
-library(dplyr)
-library(knitr)
-library(ggplot2)
+**Fonction M/G/1 (formules de Pollaczek-Khinchine) :**
 
-# ========== PARAMÈTRES EXTRAITS ========== 
-# Taux de service (patients/heure)
-mu_Prio <- 9.062
+Pour un système M/G/1, les indicateurs de performance sont donnés par les formules de Pollaczek-Khinchine. En particulier, le nombre moyen de clients en file dépend non seulement du taux d’occupation ρ, mais aussi de la variabilité du service via le coefficient de variation.
 
-# Coefficient de variation du temps de service
-cv_S_Prio <- 0.307
+```{r answer 2.2.1}
 
-# Taux d'arrivée (patients/heure)
-lambda_Prio <- 1.9
-lambda_8h_11h20_Prio <- 2.7
-lambda_11h20_14h40_Prio <- 1.2
-lambda_14h40_18h_Prio <- 1.8
-
-# ========== FORMULES M/G/1 (POLLACZEK-KHINCHINE) ========== 
-# ρ = λ/μ : Taux d'utilisation
-# L_q = (ρ²(1 + cv²)) / (2(1-ρ)) : Nombre moyen de clients en file (formule P-K)
-# L = ρ + L_q : Nombre moyen de clients dans le système
-# W_q = L_q/λ : Temps moyen d'attente en file (Loi de Little)
-# W = L/λ : Temps moyen dans le système (Loi de Little)
-
-# Fonction pour calculer les indicateurs M/G/1
-calcul_MG1 <- function(lambda, mu, cv, nom_periode = "") {
+calcul_MG1 <- function(lambda, mu, cv, periode = "") {
+  
   rho <- lambda / mu
   
-  # Vérifier la stabilité (ρ < 1)
   if (rho >= 1) {
     return(data.frame(
-      Periode = nom_periode,
+      Periode = periode,
       lambda = lambda,
       mu = mu,
       cv = cv,
@@ -792,20 +773,16 @@ calcul_MG1 <- function(lambda, mu, cv, nom_periode = "") {
     ))
   }
   
-  # Calculs théoriques M/G/1 avec formules de Pollaczek-Khinchine
+  # Formules de Pollaczek-Khinchine
   L_q <- (rho^2 * (1 + cv^2)) / (2 * (1 - rho))
   L <- rho + L_q
   
-  # Temps d'attente via loi de Little : W = L/λ
-  W_q_heures <- L_q / lambda
-  W_heures <- L / lambda
+  # Loi de Little
+  W_q_sec <- (L_q / lambda) * 3600
+  W_sec <- (L / lambda) * 3600
   
-  # Conversion en secondes
-  W_q_sec <- W_q_heures * 3600
-  W_sec <- W_heures * 3600
-  
-  return(data.frame(
-    Periode = nom_periode,
+  data.frame(
+    Periode = periode,
     lambda = lambda,
     mu = mu,
     cv = cv,
@@ -815,10 +792,15 @@ calcul_MG1 <- function(lambda, mu, cv, nom_periode = "") {
     W_q_sec = round(W_q_sec, 2),
     W_sec = round(W_sec, 2),
     Stable = "OUI"
-  ))
+  )
 }
+```
 
-# ========== CALCULS M/G/1 POUR DIFFÉRENTES PÉRIODES ========== 
+**Indicateurs théoriques M/G/1 par période :**
+
+Les indicateurs M/G/1 sont calculés pour les mêmes périodes que dans l’étude M/M/1. Pour toutes les périodes, le taux d’occupation reste inférieur à 1, garantissant la stabilité du système.
+
+```{r answer 2.2.2}
 resultats_MG1 <- bind_rows(
   calcul_MG1(lambda_Prio, mu_Prio, cv_S_Prio, "Global (8h-18h)"),
   calcul_MG1(lambda_8h_11h20_Prio, mu_Prio, cv_S_Prio, "[8h;11h20]"),
@@ -826,198 +808,127 @@ resultats_MG1 <- bind_rows(
   calcul_MG1(lambda_14h40_18h_Prio, mu_Prio, cv_S_Prio, "[14h40;18h00]")
 )
 
-cat("\n========== MODÈLE M/G/1 - BUREAU PRIORITAIRE ==========\n")
-cat("Formules de Pollaczek-Khinchine avec cv =", cv_S_Prio, "\n\n")
-print(kable(resultats_MG1, format = "simple"))
+kable(resultats_MG1, format = "simple")
 
-# ========== RAPPEL M/M/1 POUR COMPARAISON ========== 
-calcul_MM1 <- function(lambda, mu, nom_periode = "") {
-  rho <- lambda / mu
-  if (rho >= 1) {
-    return(data.frame(
-      Periode = nom_periode,
-      lambda = lambda,
-      mu = mu,
-      cv = 1.0,
-      rho = rho,
-      L_q = Inf,
-      L = Inf,
-      W_q_sec = Inf,
-      W_sec = Inf,
-      Modele = "M/M/1"
-    ))
-  }
-  
-  L_q <- (rho^2) / (1 - rho)
-  L <- rho / (1 - rho)
-  W_q_heures <- rho / (mu * (1 - rho))
-  W_heures <- 1 / (mu - lambda)
-  W_q_sec <- W_q_heures * 3600
-  W_sec <- W_heures * 3600
-  
-  return(data.frame(
-    Periode = nom_periode,
-    lambda = lambda,
-    mu = mu,
-    cv = 1.0,
-    rho = round(rho, 4),
-    L_q = round(L_q, 4),
-    L = round(L, 4),
-    W_q_sec = round(W_q_sec, 2),
-    W_sec = round(W_sec, 2),
-    Modele = "M/M/1"
-  ))
-}
+```
 
-resultats_MM1 <- bind_rows(
-  calcul_MM1(lambda_Prio, mu_Prio, "Global (8h-18h)"),
-  calcul_MM1(lambda_8h_11h20_Prio, mu_Prio, "[8h;11h20]"),
-  calcul_MM1(lambda_11h20_14h40_Prio, mu_Prio, "[11h20;14h40]"),
-  calcul_MM1(lambda_14h40_18h_Prio, mu_Prio, "[14h40;18h00]")
-)
+**Comparaison M/M/1 vs M/G/1 vs empirique :**
 
-# ========== COMPARAISON M/M/1 vs M/G/1 vs EMPIRIQUE ========== 
-cat("\n========== COMPARAISON M/M/1 vs M/G/1 vs EMPIRIQUE ==========\n\n")
-
-# Données empiriques
+```{r answer 2.2.3}
 donnees_empiriques <- data.frame(
   Periode = c("Global (8h-18h)", "[8h;11h20]", "[11h20;14h40]", "[14h40;18h00]"),
-  W_q_empirique = c(1.30, 0, 0, 4.10),
-  W_empirique = c(398.57, 449, 345, 358),
-  L_q_empirique = c(0.001, 0, 0, 0.00205),
-  L_empirique = c(0.210, 0.337, 0.115, 0.179)
+  W_q_emp = c(1.30, 0, 0, 4.10),
+  L_q_emp = c(0.001, 0, 0, 0.00205)
 )
 
-# Créer un tableau comparatif
-comparaison_complete <- data.frame(
-  Periode = resultats_MM1$Periode,
-  
-  # M/M/1
-  W_q_MM1 = resultats_MM1$W_q_sec,
-  L_q_MM1 = resultats_MM1$L_q,
-  
-  # M/G/1
-  W_q_MG1 = resultats_MG1$W_q_sec,
-  L_q_MG1 = resultats_MG1$L_q,
-  
-  # Empirique
-  W_q_emp = donnees_empiriques$W_q_empirique,
-  L_q_emp = donnees_empiriques$L_q_empirique
-) %>%
+comparaison <- resultats_MM1 %>%
+  select(Periode, W_q_MM1 = W_q_sec, L_q_MM1 = L_q) %>%
+  left_join(
+    resultats_MG1 %>% select(Periode, W_q_MG1 = W_q_sec, L_q_MG1 = L_q),
+    by = "Periode"
+  ) %>%
+  left_join(donnees_empiriques, by = "Periode") %>%
   mutate(
-    # Écarts absolus
-    Ecart_MM1_W_q = W_q_MM1 - W_q_emp,
-    Ecart_MG1_W_q = W_q_MG1 - W_q_emp,
-    
-    # Amélioration M/G/1 vs M/M/1
-    Amelioration_W_q = W_q_MM1 - W_q_MG1,
-    Amelioration_pct = round(100 * (W_q_MM1 - W_q_MG1) / W_q_MM1, 1)
+    Gain_MG1 = W_q_MM1 - W_q_MG1,
+    Gain_pct = round(100 * Gain_MG1 / W_q_MM1, 1)
   )
 
-cat("\n--- Comparaison W_q (temps d'attente en file, secondes) ---\n")
-print(kable(comparaison_complete %>% 
-              select(Periode, W_q_MM1, W_q_MG1, W_q_emp, Amelioration_W_q, Amelioration_pct), 
-            format = "simple"))
+kable(comparaison, format = "simple")
 
-cat("\n--- Comparaison L_q (nombre moyen en file) ---\n")
-print(kable(comparaison_complete %>% 
-              select(Periode, L_q_MM1, L_q_MG1, L_q_emp), 
-            format = "simple"))
+```
 
-# ========== ANALYSE DÉTAILLÉE ========== 
-cat("\n========== ANALYSE DES RÉSULTATS M/G/1 ==========\n\n")
+Le modèle M/M/1 suppose implicitement un coefficient de variation égal à 1, correspondant à une loi exponentielle. Or, dans notre cas, le coefficient de variation observé est nettement inférieur, ce qui conduit le modèle M/M/1 à surestimer les temps d’attente et l’occupation moyenne.
 
-cat("1. IMPACT DU COEFFICIENT DE VARIATION (cv = 0.307 < 1):\n")
-cat("   - Le cv faible indique une variabilité du service plus faible qu'une loi exponentielle\n")
-cat("   - Formule P-K: L_q = (ρ²(1 + cv²)) / (2(1-ρ))\n")
-cat("   - Avec cv = 0.307: facteur (1 + cv²) = 1.094\n")
-cat("   - Avec cv = 1 (M/M/1): facteur (1 + cv²) = 2.000\n")
-cat(sprintf("   - RÉDUCTION: %.1f%% des temps d'attente par rapport à M/M/1\n", 
-            100 * (1 - 1.094/2)))
-cat("\n")
+**Graphique comparatif des temps d'attente en file :**
 
-cat("2. COMPARAISON NUMÉRIQUE M/G/1 vs M/M/1:\n")
-for (i in 1:nrow(comparaison_complete)) {
-  cat(sprintf("   %s:\n", comparaison_complete$Periode[i]))
-  cat(sprintf("     - W_q M/M/1: %.2f sec\n", comparaison_complete$W_q_MM1[i]))
-  cat(sprintf("     - W_q M/G/1: %.2f sec (%.1f%% de réduction)\n", 
-              comparaison_complete$W_q_MG1[i], 
-              comparaison_complete$Amelioration_pct[i]))
-  cat(sprintf("     - W_q empirique: %.2f sec\n", comparaison_complete$W_q_emp[i]))
-  cat("\n")
-}
+```{r answer 2.2.4}
+library(tidyr)
 
-cat("3. PERTINENCE DU MODÈLE M/G/1:\n")
-cat("   - M/G/1 est PLUS PROCHE de la réalité que M/M/1\n")
-cat("   - Prend en compte la vraie variabilité du service (cv = 0.307)\n")
-cat("   - Reste une surestimation car:\n")
-cat("     * Hypothèse d'arrivées Poissoniennes discutable (RDV planifiés)\n")
-cat("     * Non-stationnarité toujours présente\n")
-cat("     * Période de montée en charge non modélisée\n")
-cat("\n")
-
-cat("4. INTERPRÉTATION DE cv = 0.307:\n")
-cat("   - cv < 1 : Service plus régulier qu'un processus exponentiel\n")
-cat("   - Possible raisons:\n")
-cat("     * Procédure d'accueil standardisée\n")
-cat("     * Formation homogène du personnel\n")
-cat("     * Types de patients prioritaires relativement similaires\n")
-cat("   - Conséquence: Moins d'aléas → moins d'attente\n")
-cat("\n")
-
-# ========== VISUALISATIONS ========== 
-cat("\n========== GRAPHIQUES COMPARATIFS ==========\n\n")
-
-# Graphique 1: Comparaison W_q pour les 3 approches
-df_plot_wq <- comparaison_complete %>%
+df_plot <- comparaison %>%
   select(Periode, W_q_MM1, W_q_MG1, W_q_emp) %>%
-  tidyr::pivot_longer(cols = c(W_q_MM1, W_q_MG1, W_q_emp), 
-                      names_to = "Modele", 
-                      values_to = "W_q")
+  pivot_longer(cols = -Periode,
+               names_to = "Modele",
+               values_to = "W_q")
 
-p1 <- ggplot(df_plot_wq, aes(x = Periode, y = W_q, fill = Modele)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Comparaison W_q : M/M/1 vs M/G/1 vs Empirique",
-       subtitle = paste0("Bureau d'Accueil Prioritaire (cv = ", cv_S_Prio, ")"),
-       x = "Période",
-       y = "Temps d'attente moyen en file (secondes)",
-       fill = "Source") +
+ggplot(df_plot, aes(x = Periode, y = W_q, fill = Modele)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Temps d'attente en file : comparaison des modèles",
+    x = "Période",
+    y = "Wq (secondes)"
+  ) +
   scale_fill_manual(
-    values = c("W_q_MM1" = "steelblue", "W_q_MG1" = "orange", "W_q_emp" = "darkgreen"),
-    labels = c("W_q_MM1" = "M/M/1 (cv=1)", 
-               "W_q_MG1" = "M/G/1 (cv=0.307)", 
-               "W_q_emp" = "Empirique")
+    values = c("W_q_MM1" = "steelblue",
+               "W_q_MG1" = "orange",
+               "W_q_emp" = "darkgreen"),
+    labels = c("M/M/1", "M/G/1", "Empirique")
   ) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-print(p1)
+```
 
-# Graphique 2: Impact du cv sur L_q
-cv_values <- seq(0.1, 2, by = 0.05)
+**Analyse :**
+
+Le graphique met en évidence que le modèle M/M/1 surestime systématiquement le temps d’attente en file par rapport au modèle M/G/1.
+Le modèle M/G/1 fournit des estimations plus proches des valeurs empiriques, notamment sur les périodes à faible charge.
+Cela confirme que la prise en compte de la variabilité réelle du service est essentielle pour une modélisation réaliste du système.
+
+**Impact du coefficient de variation (P-K) :**
+
+```{r answer 2.2.5}
+cv_seq <- seq(0.1, 2, by = 0.05)
 rho_test <- lambda_Prio / mu_Prio
 
-df_cv_impact <- data.frame(
-  cv = cv_values,
-  L_q = (rho_test^2 * (1 + cv_values^2)) / (2 * (1 - rho_test))
+df_cv <- data.frame(
+  cv = cv_seq,
+  L_q = (rho_test^2 * (1 + cv_seq^2)) / (2 * (1 - rho_test))
 )
 
-p2 <- ggplot(df_cv_impact, aes(x = cv, y = L_q)) +
-  geom_line(color = "blue", size = 1.2) +
-  geom_vline(xintercept = cv_S_Prio, linetype = "dashed", color = "darkgreen", size = 1) +
-  geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 1) +
-  annotate("text", x = cv_S_Prio, y = max(df_cv_impact$L_q) * 0.9, 
-           label = paste0("cv réel = ", cv_S_Prio), hjust = -0.1, color = "darkgreen") +
-  annotate("text", x = 1, y = max(df_cv_impact$L_q) * 0.8, 
-           label = "cv M/M/1 = 1", hjust = -0.1, color = "red") +
-  labs(title = "Impact du coefficient de variation sur L_q",
-       subtitle = paste0("Formule P-K avec ρ = ", round(rho_test, 3)),
-       x = "Coefficient de variation (cv)",
-       y = "Nombre moyen en file (L_q)") +
+ggplot(df_cv, aes(x = cv, y = L_q)) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_vline(xintercept = cv_S_Prio, linetype = "dashed", color = "darkgreen") +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "red") +
+  labs(
+    title = "Impact du coefficient de variation sur l'attente M/G/1",
+    x = "Coefficient de variation (cv)",
+    y = "Lq"
+  ) +
   theme_minimal()
 
-print(p2)
+```
 
+Lq**​ en fonction de ρ et du cv :**
+
+```{r answer 2.2.6}
+rho_seq <- seq(0.05, 0.95, by = 0.05)
+cv_values <- c(0.3, 1, 1.5)
+
+df_rho_cv <- expand.grid(rho = rho_seq, cv = cv_values) %>%
+  mutate(
+    L_q = (rho^2 * (1 + cv^2)) / (2 * (1 - rho)),
+    cv = factor(cv)
+  )
+
+ggplot(df_rho_cv, aes(x = rho, y = L_q, color = cv)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    title = "Influence conjointe de ρ et du coefficient de variation sur Lq (M/G/1)",
+    x = "Taux d’occupation ρ",
+    y = "Nombre moyen de clients en file Lq",
+    color = "Coefficient de variation"
+  ) +
+  theme_minimal()
+
+```
+
+**Analyse :**
+
+Ce graphique illustre le rôle central de la variabilité du service dans le modèle M/G/1.
+Pour un même taux d’occupation ρ, une augmentation du coefficient de variation entraîne une croissance rapide de la longueur moyenne de la file.
+Le cas cv=1 correspond au modèle M/M/1, tandis que notre situation réelle (cv≈0.3) conduit à une congestion beaucoup plus faible.
+
+```{r}
 # Graphique 3: Écarts relatifs par rapport à l'empirique
 df_ecarts <- data.frame(
   Periode = rep(comparaison_complete$Periode, 2),
@@ -1043,22 +954,6 @@ p3 <- ggplot(df_ecarts, aes(x = Periode, y = Ecart_pct, fill = Modele)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 print(p3)
-
-# ========== RÉSUMÉ FINAL ========== 
-cat("\n========== SYNTHÈSE ==========\n\n")
-
-cat("CONCLUSION PRINCIPALE:\n")
-cat("- Le modèle M/G/1 avec cv = 0.307 est SIGNIFICATIVEMENT plus précis que M/M/1\n")
-cat(sprintf("- Réduction moyenne des prédictions de W_q: %.1f%%\n", 
-            mean(comparaison_complete$Amelioration_pct)))
-cat("- M/G/1 reste conservateur (surestime) mais beaucoup plus proche de la réalité\n")
-cat("\n")
-
-cat("RECOMMANDATIONS:\n")
-cat("1. Utiliser M/G/1 plutôt que M/M/1 pour ce bureau\n")
-cat("2. Le faible cv indique un processus bien maîtrisé\n")
-cat("3. Les prédictions restent surestimées → système encore plus performant que prévu\n")
-cat("4. Analyser par tranche horaire reste essentiel (non-stationnarité)\n")
 ```
 
 ### Question 3) Modélisation des bureaux d'accueil non prioritaires (/5)
