@@ -802,11 +802,12 @@ Les indicateurs M/G/1 sont calculés pour les mêmes périodes que dans l’étu
 
 ```{r answer 2.2.2}
 resultats_MG1 <- bind_rows(
-  calcul_MG1(lambda_Prio, mu_Prio, cv_S_Prio, "Global (8h-18h)"),
-  calcul_MG1(lambda_8h_11h20_Prio, mu_Prio, cv_S_Prio, "[8h;11h20]"),
-  calcul_MG1(lambda_11h20_14h40_Prio, mu_Prio, cv_S_Prio, "[11h20;14h40]"),
-  calcul_MG1(lambda_14h40_18h_Prio, mu_Prio, cv_S_Prio, "[14h40;18h00]")
+  calcul_MG1(lambda_Prio,            mu_Prio, cv_S_Prio, "Global"),
+  calcul_MG1(lambda_8h_11h20_Prio,   mu_Prio, cv_S_Prio, "[8h-11h20]"),
+  calcul_MG1(lambda_11h20_14h40_Prio,mu_Prio, cv_S_Prio, "[11h20-14h40]"),
+  calcul_MG1(lambda_14h40_18h_Prio,  mu_Prio, cv_S_Prio, "[14h40-18h]") 
 )
+
 
 kable(resultats_MG1, format = "simple")
 
@@ -816,7 +817,7 @@ kable(resultats_MG1, format = "simple")
 
 ```{r answer 2.2.3}
 donnees_empiriques <- data.frame(
-  Periode = c("Global (8h-18h)", "[8h;11h20]", "[11h20;14h40]", "[14h40;18h00]"),
+  Periode = c("Global", "[8h-11h20]", "[11h20-14h40]", "[14h40-18h]"),
   W_q_emp = c(1.30, 0, 0, 4.10),
   L_q_emp = c(0.001, 0, 0, 0.00205)
 )
@@ -834,7 +835,6 @@ comparaison <- resultats_MM1 %>%
   )
 
 kable(comparaison, format = "simple")
-
 ```
 
 Le modèle M/M/1 suppose implicitement un coefficient de variation égal à 1, correspondant à une loi exponentielle. Or, dans notre cas, le coefficient de variation observé est nettement inférieur, ce qui conduit le modèle M/M/1 à surestimer les temps d’attente et l’occupation moyenne.
@@ -870,9 +870,7 @@ ggplot(df_plot, aes(x = Periode, y = W_q, fill = Modele)) +
 
 **Analyse :**
 
-Le graphique met en évidence que le modèle M/M/1 surestime systématiquement le temps d’attente en file par rapport au modèle M/G/1.
-Le modèle M/G/1 fournit des estimations plus proches des valeurs empiriques, notamment sur les périodes à faible charge.
-Cela confirme que la prise en compte de la variabilité réelle du service est essentielle pour une modélisation réaliste du système.
+Le graphique met en évidence que le modèle M/M/1 surestime systématiquement le temps d’attente en file par rapport au modèle M/G/1. Le modèle M/G/1 fournit des estimations plus proches des valeurs empiriques, notamment sur les périodes à faible charge. Cela confirme que la prise en compte de la variabilité réelle du service est essentielle pour une modélisation réaliste du système.
 
 **Impact du coefficient de variation (P-K) :**
 
@@ -924,37 +922,7 @@ ggplot(df_rho_cv, aes(x = rho, y = L_q, color = cv)) +
 
 **Analyse :**
 
-Ce graphique illustre le rôle central de la variabilité du service dans le modèle M/G/1.
-Pour un même taux d’occupation ρ, une augmentation du coefficient de variation entraîne une croissance rapide de la longueur moyenne de la file.
-Le cas cv=1 correspond au modèle M/M/1, tandis que notre situation réelle (cv≈0.3) conduit à une congestion beaucoup plus faible.
-
-```{r}
-# Graphique 3: Écarts relatifs par rapport à l'empirique
-df_ecarts <- data.frame(
-  Periode = rep(comparaison_complete$Periode, 2),
-  Modele = rep(c("M/M/1", "M/G/1"), each = nrow(comparaison_complete)),
-  Ecart_pct = c(
-    100 * (comparaison_complete$W_q_MM1 - comparaison_complete$W_q_emp) / 
-      pmax(comparaison_complete$W_q_emp, 0.1),
-    100 * (comparaison_complete$W_q_MG1 - comparaison_complete$W_q_emp) / 
-      pmax(comparaison_complete$W_q_emp, 0.1)
-  )
-) %>%
-  filter(Periode != "Global (8h-18h)")  # Enlever global pour éviter échelle démesurée
-
-p3 <- ggplot(df_ecarts, aes(x = Periode, y = Ecart_pct, fill = Modele)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
-  labs(title = "Écart relatif des modèles par rapport à l'empirique",
-       subtitle = "Valeurs positives = surestimation",
-       x = "Période",
-       y = "Écart relatif W_q (%)") +
-  scale_fill_manual(values = c("M/M/1" = "steelblue", "M/G/1" = "orange")) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-print(p3)
-```
+Ce graphique illustre le rôle central de la variabilité du service dans le modèle M/G/1. Pour un même taux d’occupation ρ, une augmentation du coefficient de variation entraîne une croissance rapide de la longueur moyenne de la file. Le cas cv=1 correspond au modèle M/M/1, tandis que notre situation réelle (cv≈0.3) conduit à une congestion beaucoup plus faible.
 
 ### Question 3) Modélisation des bureaux d'accueil non prioritaires (/5)
 
