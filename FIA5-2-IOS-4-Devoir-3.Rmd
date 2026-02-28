@@ -215,9 +215,14 @@ duree_tranche <- 10/3
 -   $\lambda_{[8h;11h20]}, \lambda_{[11h20;14h40]},\lambda_{[14h40;18h00]}$ : Taux d'arrivée sur 3 les tranches des 10h d'activité
 
     ```{r answer 1.2.5}
-    lambda_8h_11h20 <- lambda_tranches %>% filter(tranche == "[8h;11h20]") %>% pull(lambda)
+    lambda_tranches <- accueil %>%
+      filter(tranche != "Hors_plage") %>%
+      group_by(tranche) %>%
+      summarise(lambda = n() / duree_tranche, .groups = "drop")
+
+    lambda_8h_11h20    <- lambda_tranches %>% filter(tranche == "[8h;11h20]")    %>% pull(lambda)
     lambda_11h20_14h40 <- lambda_tranches %>% filter(tranche == "[11h20;14h40]") %>% pull(lambda)
-    lambda_14h40_18h <- lambda_tranches %>% filter(tranche == "[14h40;18h00]") %>% pull(lambda)
+    lambda_14h40_18h   <- lambda_tranches %>% filter(tranche == "[14h40;18h00]") %>% pull(lambda)
 
     # Taux d'arrivée par tranche ET type de bureau
     lambda_tranches_bureau <- accueil %>%
@@ -435,7 +440,7 @@ ggplot(accueil, aes(y = factor(ID))) +
 
 **Analyse :**
 
-Sur ce graphique voit qu'on a un nombre moindre de patients prioritaires et que globalement leurs temps d'attente sont plus courts que les patients des autres bureaux. On voit également qu'il y a desp périodes avec un taux d'affluence plus élevé comme aux alentours de 12h par exemple ou de nombreux patients sont présents.
+Sur ce graphique voit qu'on a un nombre moindre de patients prioritaires et que globalement leurs temps d'attente sont plus courts que les patients des autres bureaux. On voit également qu'il y a des périodes avec un taux d'affluence plus élevé comme aux alentours de 12h par exemple où de nombreux patients sont présents.
 
 ```{r answer 1.3.2}
 ggplot(accueil %>% arrange(desc(W)), aes(x = factor(ID), y = W, fill = type_bureau)) +
@@ -455,7 +460,7 @@ ggplot(accueil %>% arrange(desc(W)), aes(x = factor(ID), y = W, fill = type_bure
 
 **Analyse :**
 
-Ce graphique nous permet de voir la dispersion des temps passés par les patients dans le système. On peut extrapoler une moyenne aux alentours de 350 secondes de temps passé par patient. On peut voir également que le temps total passé dans le système est un peu moins élevé pour les bureaux prioritaires car on a beaucoup moins de valeurs extrèmes comme le patient ayant passé plus de 1000s.
+Ce graphique nous permet de voir la dispersion des temps passés par les patients dans le système. On peut extrapoler une moyenne aux alentours de 350 secondes de temps passé par patient. On peut voir également que le temps total passé dans le système est un peu moins élevé pour les bureaux prioritaires car on a beaucoup moins de valeurs extrêmes comme le patient ayant passé plus de 1000s.
 
 ```{r answer 1.3.3}
 ggplot(accueil, aes(x = type_bureau, y = W, fill = type_bureau)) +
@@ -471,7 +476,7 @@ ggplot(accueil, aes(x = type_bureau, y = W, fill = type_bureau)) +
 
 **Analyse :**
 
-Ces deux boxplots permettent de voir que finalement les dispersions entre les deux services sont asses similaires mais que comme dis précédemment le bureau prioritaire à moins de valeurs extrèmes. Donc en général un patient sera obligatoirement pris en charge rapidement dans le bureau prioritaire mais dans un accueil normal peut parfois attendre plus longtemps mais ceci est à la marge.
+Ces deux boxplots permettent de voir que finalement les dispersions entre les deux services sont assez similaires mais que, ,comme dis précédemment le bureau prioritaire a moins de valeurs extrêmes. Donc en général un patient sera obligatoirement pris en charge rapidement dans le bureau prioritaire mais dans un accueil normal, le patient peut parfois attendre plus longtemps. Ceci reste cependant un cas à la marge.
 
 ```{r answer 1.3.4}
 ggplot(L_tranches_bureau, aes(x = tranche, y = L, fill = type_bureau)) +
@@ -487,7 +492,7 @@ ggplot(L_tranches_bureau, aes(x = tranche, y = L, fill = type_bureau)) +
 
 **Analyse :**
 
-Ce graphique permet de mettre en évidence le nombre moyen de patient par tranche horaire et par bureau, on voit ainsi que le bureau prioritaire est toujours moins chargé et que les autres bureaux connaissent un pic important en début de journée.
+Ce graphique permet de mettre en évidence le nombre moyen de patient par tranche horaire et par bureau. On voit ainsi que le bureau prioritaire est toujours moins chargé et que les autres bureaux connaissent un pic important en début de journée.
 
 ```{r answer 1.3.5}
 ggplot(W_tranches_bureau, aes(x = tranche, y = W_q / 60, fill = type_bureau)) +
@@ -504,7 +509,7 @@ ggplot(W_tranches_bureau, aes(x = tranche, y = W_q / 60, fill = type_bureau)) +
 
 **Analyse :**
 
-Ce graphique permet de mettre en évidence le temps moyen d'attente à chaque bureaux, on voit que pour la première tranche horaire un patient attend en moyenne 0.6 minutes dans un bureau de type Autres alors qu'il n'attend pas dans le bureau prioritaire.
+Ce graphique permet de mettre en évidence le temps moyen d'attente à chaque bureau. On voit que pour la première tranche horaire un patient attend en moyenne 0.6 minutes dans un bureau de type Autres alors qu'il n'attend pas dans le bureau prioritaire.
 
 ```{r answer 1.3.6}
 ggplot(lambda_tranches_bureau, aes(x = tranche, y = lambda, fill = type_bureau)) +
@@ -521,7 +526,7 @@ ggplot(lambda_tranches_bureau, aes(x = tranche, y = lambda, fill = type_bureau))
 
 **Analyse :**
 
-Ce graphique permet de visualiser le taux moyen d'arrivée de patient par heure, on voit que les bureaux prioritaires reçoivent bien moins de patients. On voit également de manière globale que sur tous les graphiques que la première période de la journée est toujours chargée et les délais de prise en charge sont plus longs pour les non prioritaires.
+Ce graphique permet de visualiser le taux moyen d'arrivée de patient par heure. On voit que les bureaux prioritaires reçoivent bien moins de patients. On voit également de manière globale que sur tous les graphiques que la première période de la journée est toujours chargée et les délais de prise en charge sont plus longs pour les non prioritaires.
 
 ### Question 2) Modélisation du bureau d'accueil prioritaire (/5)
 
@@ -1264,6 +1269,10 @@ cat("- Analyser par tranche horaire pour plus de précision\n")
 cat("- Considérer M/G/3 pour améliorer les prédictions (cv = 0.491)\n")
 ```
 
+**Analyse**
+
+Les bureaux d'accueil non prioritaires présentent un système globalement bien dimensionné. Le taux d'utilisation par serveur (ρ) reste très faible, oscillant entre 13% et 22% selon les tranches horaires, ce qui signifie que les agents sont largement disponibles et que le système est loin de tout risque de saturation. Cette faible charge se reflète directement dans la probabilité d'attente calculée, qui ne dépasse pas 3,2% même sur la tranche la plus chargée ([8h;11h20]), confirmant qu'un client a très peu de chances de trouver tous les serveurs occupés à son arrivée. Toutefois, la comparaison entre les temps d'attente théoriques (M/M/3) et empiriques révèle un écart notable. Si le modèle prédit des attentes inférieures à 6 secondes, les données réelles atteignent près de 37 secondes sur la tranche [8h;11h20] et environ 19 secondes en global. Cet écart suggère que les hypothèses du modèle, notamment la distribution aléatoire des arrivées et des durées de service, ne sont pas parfaitement vérifiées en pratique, possiblement en raison d'effets de groupe ou de pics d'arrivées concentrés. Enfin, l'analyse de l'effet du pooling montre sans ambiguïté l'avantage de la mutualisation des files. Une organisation en 3 files séparées (3×M/M/1) générerait des temps d'attente 30 à 50 fois supérieurs à ceux d'une file commune unique (M/M/3). Ce résultat plaide donc fortement pour le maintien d'une organisation mutualisée des bureaux non prioritaires.
+
 3.2) Étudiez le modèles comme un processus Markovien général avec un taux de service $mu_{Autres,i}$ qui dépend du niveau d'occupation et pour différent taux d'arrivée, en particulier $\lambda_{Autres},\lambda_{[8h;11h20],Autres}, \lambda_{[11h20;14h40],Autres}, \lambda_{[14h40;18h00,Autres]}$. **Attention** il vous faudra déterminer ces valeurs en analysant le taux de départ des 3 bureaux selon le niveau d'occupation.
 
 ```{r}
@@ -1641,6 +1650,10 @@ cat("   - Modèle M/G/3 pour prendre en compte cv = 0.491\n")
 cat("   - Analyse des arrivées (Poisson vs non-Poisson)\n")
 cat("   - Modèle non-stationnaire pour les variations horaires\n\n")
 ```
+
+**Analyse**
+
+Le graphique de comparaison des taux de service μ(n) révèle un écart structurel entre le comportement théorique et empirique. Le modèle M/M/3 suppose une montée linéaire du taux de service dès l'arrivée des premiers clients, alors qu'empiriquement le taux reste très faible pour n=1 à 3, chute quasi à zéro pour n=3, puis bondit brusquement à partir de n=4. Ce comportement suggère que les agents ne fonctionnent pas comme des serveurs strictement parallèles et indépendants, mais adoptent un mode de service différé lorsque la file est courte. Cette divergence explique directement les résultats sur le W_q. Le modèle de Markov général, qui intègre ce taux de service dépendant du niveau d'occupation, surestime largement l'attente réelle (\~38s sur toutes les tranches), tandis que le M/M/3 la sous-estime systématiquement. Les données empiriques se situent entre les deux, confirmant qu'aucun des deux modèles ne capture parfaitement la réalité.
 
 ### Question 4) Modélisation alternative bureaux d'accueil comme d'un système à priorité (/5)
 
@@ -2044,6 +2057,10 @@ cat("   - Pénalise les patients non prioritaires\n")
 cat("   - Nécessite une amélioration ×4 de la performance\n")
 cat("   - Sensible au taux d'utilisation (cf graphique 3)\n\n")
 ```
+
+**Analyse**
+
+La distribution du nombre de patients dans le système (M/M/1/PC=2, ρ=0.188) confirme que le système est très peu chargé : dans plus de 80% des cas, le système est vide, et la probabilité d'avoir 2 patients ou plus devient rapidement négligeable. La capacité limitée à 2 places n'est donc quasiment jamais contraignante dans les conditions actuelles, ce qui valide la pertinence de ce modèle pour ce niveau de charge. La comparaison des temps d'attente entre les trois configurations montre que le système actuel à 4 serveurs reste la référence la plus performante pour les patients prioritaires, avec un W_q quasi nul (\~1,4s), contre environ 20s pour la configuration à priorité et 23s en FIFO. Pour les non prioritaires en revanche, les trois configurations affichent des temps similaires, entre 19 et 24 secondes. L'introduction de la priorité permet ainsi de réduire l'attente des prioritaires de 14,3% par rapport au FIFO, au prix d'une légère hausse de 5,5% pour les non prioritaires, un compromis favorable si l'on cherche à protéger les patients les plus urgents. L'analyse de sensibilité au taux d'utilisation ρ illustre clairement la robustesse du système prioritaire. Pour les niveaux de charge élevés (ρ \> 0,75), l'attente des non prioritaires et du FIFO diverge très rapidement, tandis que celle des prioritaires reste bien maîtrisée. Au ρ actuel de 0,188, les trois courbes sont très proches et les temps d'attente faibles, mais cette analyse montre que si la charge venait à augmenter significativement, le système avec priorité offrirait une bien meilleure protection pour les patients urgents.
 
 4.2) Etudiez le modèle $M/M/1/PC=2$ avec un taux d'arrivée $\lambda$ constant sur la journée et un taux de service selon le type de patient $\frac{\mu_{1}}{4} = \frac{\mu_{Prio}}{4} = \frac{1}{4\bar{S}_{Prio}}$, $\frac{\mu_{2}}{4} = \frac{\mu_{Autres}}{4} = \frac{1}{4\bar{S}_{Autres}}$
 
@@ -2590,6 +2607,10 @@ cat("- Mesurer empiriquement μ₁ et μ₂ pour chaque classe\n")
 cat("- Si μ₁ ≈ μ₂, le modèle simplifié (Q4.1) est suffisant\n")
 cat("- Attention à l'impact sur les temps de service totaux (W)\n")
 ```
+
+**Analyse**
+
+La comparaison des temps d'attente W_q entre les trois configurations montre que le passage à un serveur mutualisé avec taux de service différenciés (Q4.2) dégrade légèrement les performances par rapport au système actuel à 4 serveurs, avec des W_q de 30s pour les non prioritaires et 25s pour les prioritaires, contre respectivement 19s et 1,4s dans le système actuel. La configuration Q4.1 à taux identique se situe entre les deux. Cette dégradation s'explique par la réduction du nombre de serveurs, qui compense l'effet bénéfique de la différenciation des taux de service. En revanche, la comparaison des temps totaux W révèle une image radicalement différente : Q4.1 et Q4.2 affichent des temps totaux (\~125-130s) très inférieurs à ceux du système actuel (\~400-420s). Ce paradoxe apparent s'explique par la décomposition W = W_q + S : dans le système actuel, le temps de service S est beaucoup plus long car les taux de service sont plus faibles (μ/4 vs μ), ce qui domine largement le temps total malgré un W_q plus faible. L'impact de la différenciation des taux (Q4.2 - Q4.1) est quantifié sur le troisième graphique : passer à des μ différenciés augmente W_q d'environ 5 secondes pour les prioritaires et 5,5 secondes pour les non prioritaires. La différenciation ne favorise donc pas mécaniquement les prioritaires en termes d'attente en file, ce qui s'explique par le ratio actuel μ₁/μ₂ ≈ 1,001, quasi identique comme l'indique le graphique de sensibilité. C'est précisément ce que confirme l'analyse de sensibilité au ratio μ₁/μ₂ : au ratio actuel de 1,001, les deux classes sont quasi confondues et proches du minimum de W_q. Pour tirer un vrai bénéfice de la différenciation en faveur des prioritaires, il faudrait augmenter significativement μ₁ par rapport à μ₂, ce qui réduirait l'attente des prioritaires au prix d'une hausse pour les non prioritaires.
 
 ### Discussion supplémentaire (points complémentaires sur chaque question)
 
