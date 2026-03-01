@@ -1599,21 +1599,9 @@ Supposons que le service d'accueil deviennent beaucoup plus performant et que le
 
 4.1) Etudiez le modèle $M/M/1/PC=2$ avec un taux d'arrivée $\lambda$ constant sur la journée et $\frac{\mu}{4} = \frac{1}{4\bar{S}}$
 
-```{r}
-library(dplyr)
-library(knitr)
-library(ggplot2)
+**Paramètres et stabilité du système :**
 
-# ========== PARAMÈTRES DU SYSTÈME À PRIORITÉ ========== 
-cat("\n========== MODÈLE M/M/1 AVEC 2 CLASSES DE PRIORITÉ (PC=2) ==========\n\n")
-
-cat("CONTEXTE:\n")
-cat("- Système unifié avec 1 serveur unique (au lieu de 4 séparés)\n")
-cat("- Temps de service divisé par 4 (amélioration de performance)\n")
-cat("- 2 classes de priorité:\n")
-cat("    * Classe 1 (Haute priorité): Patients prioritaires\n")
-cat("    * Classe 2 (Basse priorité): Patients non prioritaires\n\n")
-
+```{r answer 4.1.1}
 # ========== DONNÉES DE BASE ========== 
 
 # Taux d'arrivée globaux (de la question 1.2)
@@ -1631,28 +1619,27 @@ S_mean_global <- (lambda_Prio * S_mean_Prio + lambda_Autres * S_mean_Autres) / l
 # Taux de service moyen actuel
 mu_actuel <- 3600 / S_mean_global
 
-# NOUVEAU taux de service (divisé par 4 en temps → multiplié par 4 en taux)
+# NOUVEAU taux de service 
 mu_nouveau <- mu_actuel * 4
+```
 
-cat("========== PARAMÈTRES ==========\n")
-cat(sprintf("λ₁ (Prioritaire) = %.2f patients/heure\n", lambda_Prio))
-cat(sprintf("λ₂ (Non prioritaire) = %.2f patients/heure\n", lambda_Autres))
-cat(sprintf("λ (Total) = %.2f patients/heure\n", lambda_total))
-cat(sprintf("\nTemps service actuel moyen: %.2f secondes\n", S_mean_global))
-cat(sprintf("Temps service NOUVEAU (÷4): %.2f secondes\n", S_mean_global / 4))
-cat(sprintf("\nμ actuel = %.3f patients/heure\n", mu_actuel))
-cat(sprintf("μ nouveau (×4) = %.3f patients/heure\n", mu_nouveau))
-cat(sprintf("\nρ = λ/μ = %.4f\n\n", lambda_total / mu_nouveau))
+On considère un système unifié à **1 serveur unique**, dont la performance est améliorée : les temps de service sont divisés par 4, donc le taux de service est multiplié par 4.
 
-# ========== FORMULES M/M/1/PC=2 (PRIORITÉ NON-PRÉEMPTIVE) ========== 
-# Référence: Shortle et al. (2018), section 4.4, p172
+Le taux d’utilisation total est :
 
-# Notation:
-# - λ₁, λ₂ : taux d'arrivée des classes 1 et 2
-# - μ : taux de service (identique pour les 2 classes)
-# - ρᵢ = λᵢ/μ : utilisation due à la classe i
-# - ρ = ρ₁ + ρ₂ = λ/μ : utilisation totale
+ρ=λ/μ
 
+Avec les nouvelles performances, on obtient :
+
+-    ρ ≈ 0,19 (soit 19 %)
+
+La condition de stabilité ρ<1\rho < 1ρ\<1 est largement respectée.
+
+Le système est donc **très peu chargé**, avec un serveur occupé moins de 20 % du temps.
+
+**Calcul des indicateurs M/M/1/PC=2 :**
+
+```{r answer 4.1.2}
 calcul_MM1_PC2 <- function(lambda1, lambda2, mu, preemptive = FALSE) {
   # lambda1: taux arrivée classe haute priorité
   # lambda2: taux arrivée classe basse priorité
@@ -1774,10 +1761,23 @@ if (!resultats_PC2$stable) {
   cat(sprintf("  Classe 2: %.4f patients\n", resultats_PC2$L2))
   cat(sprintf("  Total: %.4f patients\n\n", resultats_PC2$L_total))
 }
+```
 
-# ========== COMPARAISON AVEC SYSTÈME SANS PRIORITÉ (M/M/1) ========== 
-cat("\n========== COMPARAISON : AVEC vs SANS PRIORITÉ ==========\n\n")
+**Analyse :**
 
+Les résultats montrent que :
+
+-    Le système reste stable (ρ \< 1).
+
+-   Les patients prioritaires (classe 1) ont un temps d’attente plus faible que les non prioritaires.
+
+-    La priorité redistribue l’attente : elle protège la classe 1 au détriment modéré de la classe 2.
+
+Dans ce régime peu chargé (ρ ≈ 0,19), les temps d’attente restent globalement faibles pour les deux classes.
+
+**Comparaison avec M/M/1 sans priorité (FIFO) :**
+
+```{r answer 4.1.3}
 # Calculer M/M/1 classique (sans priorité)
 rho_sans_priorite <- lambda_total / mu_nouveau
 L_q_sans_priorite <- rho_sans_priorite^2 / (1 - rho_sans_priorite)
@@ -1810,10 +1810,23 @@ cat(sprintf("  Classe 1 (gain): -%.2f secondes (%.1f%% de réduction)\n",
 cat(sprintf("  Classe 2 (perte): +%.2f secondes (%.1f%% d'augmentation)\n\n", 
             perte_classe2,
             100 * perte_classe2 / W_q_sans_priorite_sec))
+```
 
-# ========== COMPARAISON AVEC SYSTÈME ACTUEL (4 SERVEURS) ========== 
-cat("\n========== COMPARAISON : NOUVEAU SYSTÈME vs SYSTÈME ACTUEL ==========\n\n")
+**Analyse :**
 
+Le système FIFO (sans priorité) donne un temps d’attente identique pour tous les patients.
+
+Avec priorité :
+
+-    Les prioritaires gagnent environ 14 % de temps d’attente.
+
+-    Les non prioritaires subissent une légère augmentation (\~5 %).
+
+La priorité agit donc comme un **mécanisme de protection ciblée**, avec un coût modéré pour la classe 2.
+
+**Comparaison avec le système actuel (4 serveurs) :**
+
+```{r answer 4.1.4}
 # Rappel des valeurs empiriques actuelles
 W_q_actuel_Prio <- 1.30      # De question 1.2
 W_q_actuel_Autres <- 18.53   # De question 1.2
@@ -1834,10 +1847,21 @@ cat(sprintf("  Classe 2: %.2f → %.2f secondes (×%.2f)\n\n",
             W_q_actuel_Autres, resultats_PC2$W_q2_sec,
             resultats_PC2$W_q2_sec / W_q_actuel_Autres))
 
-# ========== VISUALISATIONS ========== 
-cat("\n========== GRAPHIQUES ==========\n\n")
+```
 
-# Graphique 1: Comparaison temps d'attente W_q
+Le système actuel à 4 serveurs reste plus performant pour les patients prioritaires, avec un temps d’attente quasi nul.
+
+Le système unifié à priorité :
+
+-    améliore la mutualisation,
+
+-    mais ne dépasse pas la performance du système actuel.
+
+On observe donc un compromis entre **mutualisation des ressources** et **performance absolue.**
+
+**Comparaison des temps d'attente :**
+
+```{r answer 4.1.5}
 df_comparison_wq <- data.frame(
   Systeme = rep(c("Actuel (4 serveurs)", "FIFO (1 serveur ×4)", "Priorité (1 serveur ×4)"), each = 2),
   Classe = rep(c("Prioritaire", "Non prioritaire"), 3),
@@ -1860,8 +1884,21 @@ p1 <- ggplot(df_comparison_wq, aes(x = Systeme, y = W_q, fill = Classe)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 print(p1)
+```
 
-# Graphique 2: Impact de la priorité (gain/perte)
+La comparaison montre que :
+
+-    Le système actuel reste optimal pour les prioritaires.
+
+-   Le FIFO dégrade la performance surtout pour les prioritaires.
+
+-    Le système à priorité permet de récupérer une partie de la performance perdue pour les prioritaires.
+
+La priorité constitue potentiellement une solution intermédiaire.
+
+**Impact de la priorité :**
+
+```{r answer 4.1.6}
 df_impact <- data.frame(
   Classe = c("Prioritaire", "Non prioritaire"),
   Delta_W_q = c(-gain_classe1, perte_classe2),
@@ -1882,8 +1919,21 @@ p2 <- ggplot(df_impact, aes(x = Classe, y = Delta_W_q, fill = Classe)) +
   guides(fill = "none")
 
 print(p2)
+```
 
-# Graphique 3: Variation de W_q en fonction de ρ
+**Analyse :**
+
+Le graphique met en évidence :
+
+-    un gain clair pour les prioritaires,
+
+-   une perte modérée pour les non prioritaires.
+
+La priorité introduit une redistribution contrôlée du temps d’attente.
+
+**Sensibilité au taux d'utilisation p :**
+
+```{r answer 4.1.7}
 rho_values <- seq(0.1, 0.95, by = 0.05)
 lambda_test <- rho_values * mu_nouveau
 prop_prio <- lambda_Prio / lambda_total  # Proportion de patients prioritaires
@@ -1929,9 +1979,23 @@ p3 <- ggplot(df_rho_plot, aes(x = rho, y = W_q, color = Type, linetype = Type)) 
   theme_minimal()
 
 print(p3)
+```
 
-# Graphique 4: Distribution du nombre de patients
-# Calculer les probabilités d'état pour visualisation
+**Analyse :**
+
+L’analyse de sensibilité montre que :
+
+-    Pour des valeurs faibles de ρ (comme ici, 0,188), les trois systèmes sont proches.
+
+-   Lorsque ρ augmente (\> 0,75), l’attente des non prioritaires et du FIFO explose.
+
+-   En revanche, l’attente des prioritaires reste bien maîtrisée.
+
+Cela montre que la priorité devient **stratégiquement très intéressante lorsque la charge augmente**.
+
+**Distribution du nombre de patients :**
+
+```{r answer 4.1.8}
 n_max <- 20
 pi <- numeric(n_max + 1)
 pi[1] <- 1 - resultats_PC2$rho  # π(0)
@@ -1954,335 +2018,167 @@ p4 <- ggplot(df_distribution, aes(x = n, y = probabilite)) +
   theme_minimal()
 
 print(p4)
-
-# ========== SYNTHÈSE FINALE ========== 
-cat("\n========== SYNTHÈSE M/M/1/PC=2 ==========\n\n")
-
-cat("RÉSULTATS PRINCIPAUX:\n\n")
-
-cat("1. STABILITÉ DU SYSTÈME:\n")
-cat(sprintf("   - ρ = %.4f < 1 → Système STABLE\n", resultats_PC2$rho))
-cat(sprintf("   - Taux d'occupation: %.1f%%\n\n", resultats_PC2$rho * 100))
-
-cat("2. EFFET DE LA PRIORITÉ:\n")
-cat("   - Les patients prioritaires bénéficient d'une forte réduction d'attente\n")
-cat(sprintf("   - Réduction: %.1f%% par rapport à FIFO\n", 
-            100 * gain_classe1 / W_q_sans_priorite_sec))
-cat("   - Les patients non prioritaires subissent une pénalité\n")
-cat(sprintf("   - Augmentation: %.1f%% par rapport à FIFO\n\n",
-            100 * perte_classe2 / W_q_sans_priorite_sec))
-
-cat("3. COMPARAISON AVEC SYSTÈME ACTUEL:\n")
-if (resultats_PC2$W_q1_sec > W_q_actuel_Prio) {
-  cat("   - Classe 1: DÉGRADATION par rapport au système actuel\n")
-} else {
-  cat("   - Classe 1: AMÉLIORATION par rapport au système actuel\n")
-}
-if (resultats_PC2$W_q2_sec > W_q_actuel_Autres) {
-  cat("   - Classe 2: DÉGRADATION par rapport au système actuel\n")
-} else {
-  cat("   - Classe 2: AMÉLIORATION par rapport au système actuel\n")
-}
-cat("\n")
-
-cat("4. AVANTAGES DU SYSTÈME À PRIORITÉ:\n")
-cat("   - Garantit un service rapide aux patients prioritaires\n")
-cat("   - Mutualisation des ressources (1 serveur vs 4)\n")
-cat("   - Flexibilité dans la gestion des flux\n\n")
-
-cat("5. INCONVÉNIENTS:\n")
-cat("   - Pénalise les patients non prioritaires\n")
-cat("   - Nécessite une amélioration ×4 de la performance\n")
-cat("   - Sensible au taux d'utilisation (cf graphique 3)\n\n")
 ```
 
-**Analyse**
+**Analyse :**
 
-La distribution du nombre de patients dans le système (M/M/1/PC=2, ρ=0.188) confirme que le système est très peu chargé : dans plus de 80% des cas, le système est vide, et la probabilité d'avoir 2 patients ou plus devient rapidement négligeable. La capacité limitée à 2 places n'est donc quasiment jamais contraignante dans les conditions actuelles, ce qui valide la pertinence de ce modèle pour ce niveau de charge. La comparaison des temps d'attente entre les trois configurations montre que le système actuel à 4 serveurs reste la référence la plus performante pour les patients prioritaires, avec un W_q quasi nul (\~1,4s), contre environ 20s pour la configuration à priorité et 23s en FIFO. Pour les non prioritaires en revanche, les trois configurations affichent des temps similaires, entre 19 et 24 secondes. L'introduction de la priorité permet ainsi de réduire l'attente des prioritaires de 14,3% par rapport au FIFO, au prix d'une légère hausse de 5,5% pour les non prioritaires, un compromis favorable si l'on cherche à protéger les patients les plus urgents. L'analyse de sensibilité au taux d'utilisation ρ illustre clairement la robustesse du système prioritaire. Pour les niveaux de charge élevés (ρ \> 0,75), l'attente des non prioritaires et du FIFO diverge très rapidement, tandis que celle des prioritaires reste bien maîtrisée. Au ρ actuel de 0,188, les trois courbes sont très proches et les temps d'attente faibles, mais cette analyse montre que si la charge venait à augmenter significativement, le système avec priorité offrirait une bien meilleure protection pour les patients urgents.
+Avec ρ ≈ 0,188 :
+
+-   Le système est vide dans plus de 80 % des cas.
+
+-    La probabilité d’avoir 2 patients ou plus devient rapidement négligeable.
+
+Le système est donc très peu congestionné dans les conditions actuelles.
+
+**Conclusion :**
+
+Le modèle M/M/1/PC=2 avec un taux d'arrivée $\lambda$ constant sur la journée et $\frac{\mu}{4} = \frac{1}{4\bar{S}}$ montre que :
+
+-   Le système reste très stable (ρ ≈ 19 %).
+
+-   La priorité protège efficacement les patients urgents.
+
+-    Le coût pour les non prioritaires reste modéré.
+
+-    L’intérêt du système prioritaire devient majeur lorsque la charge augmente.
+
+Dans la configuration actuelle (faible ρ), les différences restent limitées, mais l’analyse de sensibilité montre que la priorité constitue une stratégie robuste en cas de hausse future de la demande.
 
 4.2) Etudiez le modèle $M/M/1/PC=2$ avec un taux d'arrivée $\lambda$ constant sur la journée et un taux de service selon le type de patient $\frac{\mu_{1}}{4} = \frac{\mu_{Prio}}{4} = \frac{1}{4\bar{S}_{Prio}}$, $\frac{\mu_{2}}{4} = \frac{\mu_{Autres}}{4} = \frac{1}{4\bar{S}_{Autres}}$
 
-```{r}
+**Paramètres et stabilité :**
+
+```{r answer 4.2.1}
 library(dplyr)
-library(knitr)
 library(ggplot2)
 
-# ========== PARAMÈTRES DU SYSTÈME À PRIORITÉ AVEC TAUX DE SERVICE DIFFÉRENCIÉS ========== 
-cat("\n========== MODÈLE M/M/1/PC=2 AVEC TAUX DE SERVICE DIFFÉRENCIÉS ==========\n\n")
-
-cat("CONTEXTE:\n")
-cat("- Système unifié avec 1 serveur unique\n")
-cat("- Temps de service DIFFÉRENTS selon la classe de patient\n")
-cat("- 2 classes de priorité avec taux de service spécifiques:\n")
-cat("    * Classe 1 (Prioritaire): μ₁ = μ_Prio / 4\n")
-cat("    * Classe 2 (Non prioritaire): μ₂ = μ_Autres / 4\n\n")
-
-# ========== DONNÉES DE BASE ========== 
-
-# Taux d'arrivée (de la question 1.2)
-lambda_Prio <- 1.9          # patients/heure - Classe 1
-lambda_Autres <- 4.9        # patients/heure - Classe 2
+# Taux d'arrivée
+lambda_Prio <- 1.9
+lambda_Autres <- 4.9
 lambda_total <- lambda_Prio + lambda_Autres
 
-# Taux de service ACTUELS (de la question 1.2)
-mu_Prio_actuel <- 9.062     # patients/heure
-mu_Autres_actuel <- 9.055   # patients/heure
+# Taux de service actuels
+mu_Prio_actuel <- 9.062
+mu_Autres_actuel <- 9.055
 
-# NOUVEAUX taux de service (divisés par 4 en temps → multipliés par 4)
-mu1_nouveau <- mu_Prio_actuel * 4      # Classe 1
-mu2_nouveau <- mu_Autres_actuel * 4    # Classe 2
+# Nouveaux taux (service 4x plus rapide)
+mu1_nouveau <- mu_Prio_actuel * 4
+mu2_nouveau <- mu_Autres_actuel * 4
 
-# Temps de service moyens
-S1_nouveau <- 3600 / mu1_nouveau  # secondes
-S2_nouveau <- 3600 / mu2_nouveau  # secondes
+# Temps de service
+S1 <- 1 / mu1_nouveau
+S2 <- 1 / mu2_nouveau
 
-cat("========== PARAMÈTRES ==========\n")
-cat(sprintf("λ₁ (Prioritaire) = %.2f patients/heure\n", lambda_Prio))
-cat(sprintf("λ₂ (Non prioritaire) = %.2f patients/heure\n", lambda_Autres))
-cat(sprintf("λ (Total) = %.2f patients/heure\n\n", lambda_total))
+# Proportions
+p1 <- lambda_Prio / lambda_total
+p2 <- lambda_Autres / lambda_total
 
-cat("TAUX DE SERVICE:\n")
-cat(sprintf("μ₁ (Prioritaire) = %.3f patients/heure (S₁ = %.2f sec)\n", mu1_nouveau, S1_nouveau))
-cat(sprintf("μ₂ (Non prioritaire) = %.3f patients/heure (S₂ = %.2f sec)\n\n", mu2_nouveau, S2_nouveau))
+# Temps de service moyen
+S_mean <- p1*S1 + p2*S2
 
-# Calculer taux de service moyen pondéré
-mu_moyen <- (lambda_Prio * mu1_nouveau + lambda_Autres * mu2_nouveau) / lambda_total
-S_moyen <- 3600 / mu_moyen
+# Taux d'utilisation
+rho <- lambda_total * S_mean
 
-cat(sprintf("Taux de service moyen pondéré: μ̄ = %.3f patients/heure (S̄ = %.2f sec)\n\n", 
-            mu_moyen, S_moyen))
+cat("rho =", rho, "\n")
+```
 
-# ========== FORMULES M/M/1/PC=2 AVEC TAUX DIFFÉRENCIÉS ========== 
-# Référence: Shortle et al. (2018), section 4.4
+**Analyse :**
 
-# Pour un système avec des taux de service différents par classe:
-# - E[S] = (λ₁/λ) × (1/μ₁) + (λ₂/λ) × (1/μ₂) : temps de service moyen
-# - E[S²] = (λ₁/λ) × (2/μ₁²) + (λ₂/λ) × (2/μ₂²) : second moment
-# - ρᵢ = λᵢ/μᵢ (mais attention, μᵢ est le taux pour la classe i)
+Le taux d’utilisation global vaut **ρ = 0,188** environ.\
+Comme **ρ \< 1**, le système est stable.
 
-calcul_MM1_PC2_diff <- function(lambda1, lambda2, mu1, mu2, preemptive = FALSE) {
-  # lambda1, lambda2: taux d'arrivée des classes 1 et 2
-  # mu1, mu2: taux de service des classes 1 et 2
-  # preemptive: TRUE si préemptif, FALSE si non-préemptif
-  
-  lambda_total <- lambda1 + lambda2
-  
-  # Proportions
-  p1 <- lambda1 / lambda_total
-  p2 <- lambda2 / lambda_total
-  
-  # Temps de service moyens
-  S1 <- 1 / mu1
-  S2 <- 1 / mu2
-  
-  # Temps de service moyen global
-  S_mean <- p1 * S1 + p2 * S2
-  
-  # Second moment du temps de service
-  # E[S²] = p₁ × E[S₁²] + p₂ × E[S₂²]
-  # Pour distribution exponentielle: E[S²] = 2/μ²
-  E_S2 <- p1 * (2 / mu1^2) + p2 * (2 / mu2^2)
-  
-  # Taux de service "effectif" moyen
-  mu_eff <- 1 / S_mean
-  
-  # Taux d'utilisation global
-  rho <- lambda_total * S_mean
-  
-  # Vérifier stabilité
-  if (rho >= 1) {
-    return(list(
-      stable = FALSE,
-      rho = rho,
-      mu_eff = mu_eff,
-      S_mean = S_mean,
-      W_q1_sec = Inf,
-      W_q2_sec = Inf,
-      W1_sec = Inf,
-      W2_sec = Inf,
-      L_q1 = Inf,
-      L_q2 = Inf,
-      L1 = Inf,
-      L2 = Inf
-    ))
-  }
-  
-  # Temps d'attente moyen dans une file M/G/1 (Pollaczek-Khinchine)
-  # W_q_MG1 = λ × E[S²] / (2(1 - ρ))
-  W_q_MG1 <- (lambda_total * E_S2) / (2 * (1 - rho))
-  
-  if (!preemptive) {
-    # PRIORITÉ NON-PRÉEMPTIVE avec taux différents
-    
-    # Utilisation par classe (attention: ρᵢ = λᵢ × Sᵢ, pas λᵢ/μᵢ)
-    rho1 <- lambda1 * S1
-    rho2 <- lambda2 * S2
-    
-    # Temps d'attente pour classe 1 (haute priorité)
-    # W_q1 = W_q_MG1 / (1 - ρ₁)
-    # où W_q_MG1 est le temps d'attente moyen dans le système sans priorité
-    W_q1 <- W_q_MG1 / (1 - rho1)
-    
-    # Temps d'attente pour classe 2 (basse priorité)
-    # W_q2 = W_q_MG1 / ((1 - ρ₁)(1 - ρ))
-    W_q2 <- W_q_MG1 / ((1 - rho1) * (1 - rho))
-    
-  } else {
-    # PRIORITÉ PRÉEMPTIVE avec taux différents
-    
-    rho1 <- lambda1 * S1
-    
-    # Classe 1
-    W_q1 <- (lambda1 * (2 / mu1^2)) / (2 * (1 - rho1))
-    
-    # Classe 2
-    W_q2 <- W_q_MG1 / ((1 - rho1) * (1 - rho))
-  }
-  
-  # Temps total dans le système
-  W1 <- W_q1 + S1
-  W2 <- W_q2 + S2
-  
-  # Nombre moyen via loi de Little
-  L_q1 <- lambda1 * W_q1
-  L_q2 <- lambda2 * W_q2
-  L1 <- lambda1 * W1
-  L2 <- lambda2 * W2
-  
-  # Conversion en secondes (tout est en heures)
-  W_q1_sec <- W_q1 * 3600
-  W_q2_sec <- W_q2 * 3600
-  W1_sec <- W1 * 3600
-  W2_sec <- W2 * 3600
-  
-  return(list(
-    stable = TRUE,
-    rho = rho,
-    rho1 = rho1,
-    rho2 = rho2,
-    mu_eff = mu_eff,
-    S_mean = S_mean,
-    S1 = S1,
-    S2 = S2,
-    # Temps d'attente en file (secondes)
-    W_q1_sec = W_q1_sec,
-    W_q2_sec = W_q2_sec,
-    # Temps total (secondes)
-    W1_sec = W1_sec,
-    W2_sec = W2_sec,
-    # Nombre moyen
-    L_q1 = L_q1,
-    L_q2 = L_q2,
-    L1 = L1,
-    L2 = L2,
-    L_q_total = L_q1 + L_q2,
-    L_total = L1 + L2
-  ))
-}
+Le serveur est occupé environ **19 % du temps**, ce qui indique un système faiblement chargé.
 
-# ========== CALCULS AVEC TAUX DIFFÉRENCIÉS ========== 
-cat("\n========== RÉSULTATS M/M/1/PC=2 AVEC μ₁ ≠ μ₂ (NON-PRÉEMPTIF) ==========\n\n")
+La différenciation des taux de service n’affecte pas la stabilité, mais modifie le temps de service moyen E[S], ce qui influencera les temps d’attente.
 
-resultats_PC2_diff <- calcul_MM1_PC2_diff(lambda_Prio, lambda_Autres, 
-                                           mu1_nouveau, mu2_nouveau, 
-                                           preemptive = FALSE)
+**Temps d’attente en file (formule M/G/1 avec priorité) :**
 
-if (!resultats_PC2_diff$stable) {
-  cat("SYSTÈME INSTABLE ! ρ =", resultats_PC2_diff$rho, "≥ 1\n")
-} else {
-  cat("TAUX D'UTILISATION:\n")
-  cat(sprintf("  ρ₁ (Prioritaire) = %.4f\n", resultats_PC2_diff$rho1))
-  cat(sprintf("  ρ₂ (Non prioritaire) = %.4f\n", resultats_PC2_diff$rho2))
-  cat(sprintf("  ρ (Total) = %.4f (%.1f%%)\n\n", 
-              resultats_PC2_diff$rho, resultats_PC2_diff$rho * 100))
-  
-  cat("TEMPS DE SERVICE:\n")
-  cat(sprintf("  S₁ (Prioritaire) = %.2f secondes\n", resultats_PC2_diff$S1 * 3600))
-  cat(sprintf("  S₂ (Non prioritaire) = %.2f secondes\n", resultats_PC2_diff$S2 * 3600))
-  cat(sprintf("  S̄ (Moyen pondéré) = %.2f secondes\n\n", resultats_PC2_diff$S_mean * 3600))
-  
-  cat("TEMPS D'ATTENTE EN FILE (W_q):\n")
-  cat(sprintf("  Classe 1 (Prioritaire): %.2f secondes\n", resultats_PC2_diff$W_q1_sec))
-  cat(sprintf("  Classe 2 (Non prioritaire): %.2f secondes\n\n", resultats_PC2_diff$W_q2_sec))
-  
-  cat("TEMPS TOTAL DANS LE SYSTÈME (W):\n")
-  cat(sprintf("  Classe 1 (Prioritaire): %.2f secondes\n", resultats_PC2_diff$W1_sec))
-  cat(sprintf("  Classe 2 (Non prioritaire): %.2f secondes\n\n", resultats_PC2_diff$W2_sec))
-  
-  cat("NOMBRE MOYEN EN FILE (L_q):\n")
-  cat(sprintf("  Classe 1: %.4f patients\n", resultats_PC2_diff$L_q1))
-  cat(sprintf("  Classe 2: %.4f patients\n", resultats_PC2_diff$L_q2))
-  cat(sprintf("  Total: %.4f patients\n\n", resultats_PC2_diff$L_q_total))
-  
-  cat("NOMBRE MOYEN DANS LE SYSTÈME (L):\n")
-  cat(sprintf("  Classe 1: %.4f patients\n", resultats_PC2_diff$L1))
-  cat(sprintf("  Classe 2: %.4f patients\n", resultats_PC2_diff$L2))
-  cat(sprintf("  Total: %.4f patients\n\n", resultats_PC2_diff$L_total))
-}
+```{r answer 4.2.2}
+# Second moment du service
+E_S2 <- p1*(2/mu1_nouveau^2) + p2*(2/mu2_nouveau^2)
 
-# ========== COMPARAISON AVEC QUESTION 4.1 (μ identique) ========== 
-cat("\n========== COMPARAISON : μ₁ = μ₂ (Q4.1) vs μ₁ ≠ μ₂ (Q4.2) ==========\n\n")
+# Temps d'attente moyen M/G/1
+W_q_MG1 <- (lambda_total * E_S2) / (2*(1-rho))
 
-# Rappel des résultats de 4.1
-cat("QUESTION 4.1 (Taux de service identique μ):\n")
-cat(sprintf("  W_q Classe 1 = %.2f secondes\n", resultats_PC2$W_q1_sec))
-cat(sprintf("  W_q Classe 2 = %.2f secondes\n", resultats_PC2$W_q2_sec))
-cat(sprintf("  W Classe 1 = %.2f secondes\n", resultats_PC2$W1_sec))
-cat(sprintf("  W Classe 2 = %.2f secondes\n\n", resultats_PC2$W2_sec))
+# Utilisation par classe
+rho1 <- lambda_Prio * S1
+rho2 <- lambda_Autres * S2
 
-cat("QUESTION 4.2 (Taux de service différenciés μ₁, μ₂):\n")
-cat(sprintf("  W_q Classe 1 = %.2f secondes\n", resultats_PC2_diff$W_q1_sec))
-cat(sprintf("  W_q Classe 2 = %.2f secondes\n", resultats_PC2_diff$W_q2_sec))
-cat(sprintf("  W Classe 1 = %.2f secondes\n", resultats_PC2_diff$W1_sec))
-cat(sprintf("  W Classe 2 = %.2f secondes\n\n", resultats_PC2_diff$W2_sec))
+# Priorité non préemptive
+W_q1 <- W_q_MG1 / (1 - rho1)
+W_q2 <- W_q_MG1 / ((1 - rho1)*(1 - rho))
 
-# Différences
-diff_W_q1 <- resultats_PC2_diff$W_q1_sec - resultats_PC2$W_q1_sec
-diff_W_q2 <- resultats_PC2_diff$W_q2_sec - resultats_PC2$W_q2_sec
-diff_W1 <- resultats_PC2_diff$W1_sec - resultats_PC2$W1_sec
-diff_W2 <- resultats_PC2_diff$W2_sec - resultats_PC2$W2_sec
+# Conversion en secondes
+W_q1_sec <- W_q1 * 3600
+W_q2_sec <- W_q2 * 3600
 
-cat("DIFFÉRENCES (Q4.2 - Q4.1):\n")
-cat(sprintf("  ΔW_q Classe 1 = %+.2f secondes (%.1f%%)\n", 
-            diff_W_q1, 100 * diff_W_q1 / resultats_PC2$W_q1_sec))
-cat(sprintf("  ΔW_q Classe 2 = %+.2f secondes (%.1f%%)\n", 
-            diff_W_q2, 100 * diff_W_q2 / resultats_PC2$W_q2_sec))
-cat(sprintf("  ΔW Classe 1 = %+.2f secondes (%.1f%%)\n", 
-            diff_W1, 100 * diff_W1 / resultats_PC2$W1_sec))
-cat(sprintf("  ΔW Classe 2 = %+.2f secondes (%.1f%%)\n\n", 
-            diff_W2, 100 * diff_W2 / resultats_PC2$W2_sec))
+cat("W_q1 =", W_q1_sec, "sec\n")
+cat("W_q2 =", W_q2_sec, "sec\n")
+```
 
-# ========== COMPARAISON AVEC SYSTÈME ACTUEL ========== 
-cat("\n========== COMPARAISON AVEC SYSTÈME ACTUEL (4 SERVEURS) ==========\n\n")
+**Analyse :**
 
-# Valeurs empiriques actuelles
-W_q_actuel_Prio <- 1.30
-W_q_actuel_Autres <- 18.53
-W_actuel_Prio <- 398.57
-W_actuel_Autres <- 416.11
+Les temps d’attente moyens en file sont :
 
-cat("SYSTÈME ACTUEL:\n")
-cat(sprintf("  W_q Prioritaire = %.2f secondes\n", W_q_actuel_Prio))
-cat(sprintf("  W_q Non prioritaire = %.2f secondes\n", W_q_actuel_Autres))
-cat(sprintf("  W Prioritaire = %.2f secondes\n", W_actuel_Prio))
-cat(sprintf("  W Non prioritaire = %.2f secondes\n\n", W_actuel_Autres))
+-   Classe prioritaire : **≈ 25 secondes**
 
-cat("NOUVEAU SYSTÈME (Q4.2 - μ₁ ≠ μ₂):\n")
-cat(sprintf("  W_q Classe 1 = %.2f secondes\n", resultats_PC2_diff$W_q1_sec))
-cat(sprintf("  W_q Classe 2 = %.2f secondes\n", resultats_PC2_diff$W_q2_sec))
-cat(sprintf("  W Classe 1 = %.2f secondes\n", resultats_PC2_diff$W1_sec))
-cat(sprintf("  W Classe 2 = %.2f secondes\n\n", resultats_PC2_diff$W2_sec))
+-    Classe non prioritaire : **≈ 30 secondes**
 
-cat("RATIOS (Nouveau / Actuel):\n")
-cat(sprintf("  W_q Classe 1: ×%.2f\n", resultats_PC2_diff$W_q1_sec / W_q_actuel_Prio))
-cat(sprintf("  W_q Classe 2: ×%.2f\n", resultats_PC2_diff$W_q2_sec / W_q_actuel_Autres))
-cat(sprintf("  W Classe 1: ×%.2f\n", resultats_PC2_diff$W1_sec / W_actuel_Prio))
-cat(sprintf("  W Classe 2: ×%.2f\n\n", resultats_PC2_diff$W2_sec / W_actuel_Autres))
+La priorité continue donc de protéger la classe 1.\
+Cependant, la différenciation des taux de service modifie légèrement les valeurs par rapport à la question 4.1.
 
-# ========== VISUALISATIONS ========== 
-cat("\n========== GRAPHIQUES ==========\n\n")
+L’impact reste limité car **μ₁ ≈ μ₂** (quasi identiques).
 
-# Graphique 1: Comparaison W_q entre les différentes configurations
+**Temps total dans le système :**
+
+```{r answer 4.2.3}
+# Temps total
+W1 <- W_q1 + S1
+W2 <- W_q2 + S2
+
+W1_sec <- W1 * 3600
+W2_sec <- W2 * 3600
+
+cat("W1 =", W1_sec, "sec\n")
+cat("W2 =", W2_sec, "sec\n")
+```
+
+**Analyse :**
+
+Les temps totaux dans le système sont d’environ :
+
+-    Classe 1 : **125–130 secondes**
+
+-    Classe 2 : **130 secondes**
+
+Contrairement au temps d’attente seul, le temps total est fortement influencé par le temps de service.\
+Comme les temps de service ont été divisés par 4, le temps total reste **très inférieur au système initial** (\~400 secondes).
+
+**Comparaison avec Q4.1 :**
+
+```{r answer 4.2.3}
+diff_W_q1 <- W_q1_sec - resultats_PC2$W_q1_sec
+diff_W_q2 <- W_q2_sec - resultats_PC2$W_q2_sec
+
+cat("Delta W_q1 =", diff_W_q1, "\n")
+cat("Delta W_q2 =", diff_W_q2, "\n")
+```
+
+La différenciation des taux entraîne :
+
+-   +5 secondes environ pour la classe 1
+
+-   +5 secondes environ pour la classe 2
+
+Les différences sont faibles car le ratio :
+
+μ1/μ2≈1,001
+
+Autrement dit, les deux classes ont pratiquement le même temps de service.
+
+**Comparaison des temps d'attente Wq :**
+
+```{r answer 4.2.4}
 df_comp_wq <- data.frame(
   Configuration = rep(c("Actuel (4 serveurs)", "Q4.1 (μ identique)", "Q4.2 (μ différenciés)"), each = 2),
   Classe = rep(c("Prioritaire", "Non prioritaire"), 3),
@@ -2305,8 +2201,35 @@ p1 <- ggplot(df_comp_wq, aes(x = Configuration, y = W_q, fill = Classe)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 print(p1)
+```
 
-# Graphique 2: Comparaison W (temps total) entre configurations
+**Analyse :**
+
+Ce graphique compare les temps d’attente moyens en file pour les trois configurations :
+
+-    Système actuel (4 serveurs),
+
+-    Q4.1 : M/M/1/PC=2 avec μ identique,
+
+-    Q4.2 : M/M/1/PC=2 avec μ différenciés.
+
+On observe que :
+
+-   Le passage à un serveur unique (Q4.1 et Q4.2) modifie la structure d’attente
+
+-    La classe prioritaire conserve un avantage clair dans toutes les configurations.
+
+-    La différence entre Q4.1 et Q4.2 est très faible.
+
+Cela s’explique par le fait que :
+
+μ1/μ2≈1
+
+Les taux de service étant presque identiques, la différenciation a un impact très limité sur les temps d’attente.
+
+**Comparaison des temps totaux W :**
+
+```{r answer 4.2.5}
 df_comp_w <- data.frame(
   Configuration = rep(c("Actuel (4 serveurs)", "Q4.1 (μ identique)", "Q4.2 (μ différenciés)"), each = 2),
   Classe = rep(c("Prioritaire", "Non prioritaire"), 3),
@@ -2329,8 +2252,25 @@ p2 <- ggplot(df_comp_w, aes(x = Configuration, y = W, fill = Classe)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 print(p2)
+```
 
-# Graphique 3: Impact de la différenciation des taux (Q4.2 - Q4.1)
+**Analyse :**
+
+Ce graphique compare le temps total passé dans le système (attente + service).
+
+On remarque que :
+
+-    Le temps total diminue fortement par rapport au système initial.
+
+-    Cette amélioration provient principalement de la division par 4 des temps de service.
+
+-   La différence entre Q4.1 et Q4.2 reste marginale.
+
+Cela montre que, dans un système faiblement chargé (ρ ≈ 0,19), le temps de service domine largement le temps total.
+
+**Impact de la différenciation :**
+
+```{r answer 4.2.6}
 df_impact_diff <- data.frame(
   Classe = c("Prioritaire", "Non prioritaire"),
   Delta_W_q = c(diff_W_q1, diff_W_q2),
@@ -2355,8 +2295,27 @@ p3 <- ggplot(df_impact_diff, aes(x = Classe, y = Delta, fill = Indicateur)) +
   theme_minimal()
 
 print(p3)
+```
 
-# Graphique 4: Décomposition temps total (W = W_q + S)
+**Analyse :**
+
+Ce graphique représente :
+
+-    ΔW_q = différence d’attente
+
+-    ΔW = différence de temps total
+
+On observe que :
+
+-    Les variations sont faibles.
+
+-    Il n’y a pas de modification structurelle du système.
+
+La différenciation des taux de service n’a qu’un effet marginal dans notre cas, car μ₁ et μ₂ sont quasi identiques.
+
+**Décomposition** W=Wq+S :
+
+```{r answer 4.2.7}
 df_decomposition <- data.frame(
   Scenario = rep(c("Q4.1 Classe 1", "Q4.1 Classe 2", "Q4.2 Classe 1", "Q4.2 Classe 2"), each = 2),
   Composante = rep(c("Attente (W_q)", "Service (S)"), 4),
@@ -2381,7 +2340,29 @@ p4 <- ggplot(df_decomposition, aes(x = Scenario, y = Temps, fill = Composante)) 
 
 print(p4)
 
-# Graphique 5: Sensibilité au ratio μ₁/μ₂
+```
+
+**Analyse :**
+
+Ce graphique décompose le temps total en :
+
+-    Attente (W_q)
+
+-   Service (S)
+
+On constate que :
+
+-   La composante service représente la majorité du temps total.
+
+-    L’attente reste faible grâce au faible taux d’utilisation.
+
+-   La structure est quasiment identique entre Q4.1 et Q4.2.
+
+Cela confirme que le système fonctionne en régime peu congestionné.
+
+**Sensibilité au ratio μ₁/μ₂ :**
+
+```{r answer 4.2.8}
 mu_ratios <- seq(0.5, 2, by = 0.1)
 df_sensitivity <- do.call(rbind, lapply(mu_ratios, function(ratio) {
   mu1_test <- mu_moyen * ratio
@@ -2427,9 +2408,29 @@ p5 <- ggplot(df_sens_plot, aes(x = ratio, y = W_q, color = Classe, linetype = Cl
 
 print(p5)
 
-# ========== ANALYSE DÉTAILLÉE ========== 
-cat("\n========== ANALYSE DÉTAILLÉE ==========\n\n")
+```
 
+**Analyse :**
+
+Ce graphique montre l’évolution de Wq​ en fonction du ratio μ₁/μ₂.
+
+On observe que :
+
+-    Lorsque le ratio est proche de 1, les deux classes ont des performances similaires.
+
+-    Si μ₁ augmente fortement, l’attente des prioritaires diminue.
+
+-    En contrepartie, l’attente des non prioritaires augmente.
+
+La ligne verticale rouge indique le ratio actuel, qui est très proche de 1.
+
+**Conclusion :**
+
+Dans notre configuration réelle, la différenciation des taux de service n’apporte pas de gain significatif.
+
+**Analyse détaillée :**
+
+```{r answer 4.2.9}
 cat("1. IMPACT DE LA DIFFÉRENCIATION DES TAUX:\n")
 cat(sprintf("   - μ₁/μ₂ = %.3f (ratio des taux de service)\n", mu1_nouveau / mu2_nouveau))
 cat(sprintf("   - S₁/S₂ = %.3f (ratio inverse des temps)\n", S1_nouveau / S2_nouveau))
@@ -2497,8 +2498,11 @@ cat(sprintf("   - μ_Prio = %.3f vs μ_Autres = %.3f (écart de %.1f%%)\n",
             mu_Prio_actuel, mu_Autres_actuel, 
             100 * abs(mu_Prio_actuel - mu_Autres_actuel) / mu_Autres_actuel))
 cat("\n")
+```
 
-# ========== SYNTHÈSE FINALE ========== 
+**Synthèse :**
+
+```{r answer 4.2.10}
 cat("\n========== SYNTHÈSE Q4.2 ==========\n\n")
 
 cat("RÉSULTATS PRINCIPAUX:\n\n")
@@ -2546,9 +2550,11 @@ cat("- Si μ₁ ≈ μ₂, le modèle simplifié (Q4.1) est suffisant\n")
 cat("- Attention à l'impact sur les temps de service totaux (W)\n")
 ```
 
-**Analyse**
+Le modèle M/M/1/PC=2 avec μ différenciés est plus réaliste d’un point de vue théorique.\
 
-La comparaison des temps d'attente W_q entre les trois configurations montre que le passage à un serveur mutualisé avec taux de service différenciés (Q4.2) dégrade légèrement les performances par rapport au système actuel à 4 serveurs, avec des W_q de 30s pour les non prioritaires et 25s pour les prioritaires, contre respectivement 19s et 1,4s dans le système actuel. La configuration Q4.1 à taux identique se situe entre les deux. Cette dégradation s'explique par la réduction du nombre de serveurs, qui compense l'effet bénéfique de la différenciation des taux de service. En revanche, la comparaison des temps totaux W révèle une image radicalement différente : Q4.1 et Q4.2 affichent des temps totaux (\~125-130s) très inférieurs à ceux du système actuel (\~400-420s). Ce paradoxe apparent s'explique par la décomposition W = W_q + S : dans le système actuel, le temps de service S est beaucoup plus long car les taux de service sont plus faibles (μ/4 vs μ), ce qui domine largement le temps total malgré un W_q plus faible. L'impact de la différenciation des taux (Q4.2 - Q4.1) est quantifié sur le troisième graphique : passer à des μ différenciés augmente W_q d'environ 5 secondes pour les prioritaires et 5,5 secondes pour les non prioritaires. La différenciation ne favorise donc pas mécaniquement les prioritaires en termes d'attente en file, ce qui s'explique par le ratio actuel μ₁/μ₂ ≈ 1,001, quasi identique comme l'indique le graphique de sensibilité. C'est précisément ce que confirme l'analyse de sensibilité au ratio μ₁/μ₂ : au ratio actuel de 1,001, les deux classes sont quasi confondues et proches du minimum de W_q. Pour tirer un vrai bénéfice de la différenciation en faveur des prioritaires, il faudrait augmenter significativement μ₁ par rapport à μ₂, ce qui réduirait l'attente des prioritaires au prix d'une hausse pour les non prioritaires.
+Toutefois, comme l’écart entre μ₁ et μ₂ est inférieur à 1%, les résultats sont quasiment identiques au modèle simplifié de la question 4.1.\
+
+Dans ce contexte, le modèle simplifié peut être considéré comme suffisant.
 
 ### Discussion supplémentaire (points complémentaires sur chaque question)
 
@@ -2570,9 +2576,7 @@ Le modèle M/M/3 pour les bureaux non-prioritaires donne des prédictions beauco
 
 En utilisant la théorie des files d'attentes et *l'Effective Process Time* pour les temps de service, on a simplifié grandement le comportement du système. Proposez des points précis pour obtenir une modélisation plus complète des services, en particulier pour un modèle de simulation détaillé, et en quoi cela améliorait le modèle tout en considérant les risques de modélisation que cela engendrerait.
 
-```{r}
-# ========== QUESTION BONUS : MODÉLISATION PLUS COMPLÈTE ==========
-# Analyse critique et propositions d'amélioration
+```{r answer bonus}
 
 cat("\n" %>% strrep(80), "\n")
 cat("========== QUESTION BONUS : VERS UNE MODÉLISATION PLUS COMPLÈTE ==========\n")
